@@ -802,7 +802,7 @@
               <pre id="modal-prompt" class="bg-bg p-3 rounded overflow-x-auto whitespace-pre-wrap"></pre>
             </div>
             <div>
-              <label class="block text-muted uppercase font-bold mb-1">Response</label>
+              <label id="modal-completion-label" class="block text-muted uppercase font-bold mb-1">Response</label>
               <pre id="modal-completion" class="bg-bg p-3 rounded overflow-x-auto whitespace-pre-wrap"></pre>
             </div>
           </div>
@@ -1776,7 +1776,29 @@
     }, null, 2);
 
     document.getElementById('modal-prompt').textContent = log.prompt_text || "(No prompt recorded)";
-    document.getElementById('modal-completion').textContent = log.completion_text || "(No completion recorded)";
+
+    const completionLabel = document.getElementById('modal-completion-label');
+    const completionPre = document.getElementById('modal-completion');
+
+    if (log.is_failure) {
+      if (completionLabel) {
+        completionLabel.textContent = "Error Response";
+        completionLabel.classList.add('text-red-400');
+      }
+      if (completionPre) {
+        completionPre.classList.add('border', 'border-red-500/50', 'bg-red-900/10');
+        completionPre.textContent = log.completion_text || "(No error details recorded)";
+      }
+    } else {
+      if (completionLabel) {
+        completionLabel.textContent = "Response";
+        completionLabel.classList.remove('text-red-400');
+      }
+      if (completionPre) {
+        completionPre.classList.remove('border', 'border-red-500/50', 'bg-red-900/10');
+        completionPre.textContent = log.completion_text || "(No completion recorded)";
+      }
+    }
 
     // Setup Replay Button
     const replayBtn = document.getElementById('modal-replay-btn');
