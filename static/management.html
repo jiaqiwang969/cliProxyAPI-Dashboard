@@ -1730,7 +1730,7 @@
         <td class="py-3 px-2 text-muted">${log.duration_ms}ms</td>
         <td class="py-3 px-2">${statusBadge}</td>
         <td class="py-3 px-2">
-            <button class="text-xs bg-white/5 hover:bg-accent text-white px-2 py-1 rounded transition-colors group" onclick='openActivityModal(${JSON.stringify(log).replace(/'/g, "&#39;")})'>
+            <button class="text-xs bg-white/5 hover:bg-accent text-white px-2 py-1 rounded transition-colors group" onclick='showActivityDetails(${JSON.stringify(log).replace(/'/g, "&#39;")})'>
                 Details <span class="group-hover:translate-x-0.5 inline-block transition-transform">→</span>
             </button>
         </td>
