@@ -2,10 +2,10 @@ package middleware
 
 import (
 	"bytes"
-	"encoding/json"
+
 	"io"
 	"net/http"
-	"strings"
+
 
 	"github.com/gin-gonic/gin"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/database"
