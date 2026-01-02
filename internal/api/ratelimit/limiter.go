@@ -2,7 +2,6 @@ package ratelimit
 
 import (
 	"sync"
-	"time"
 
 	"golang.org/x/time/rate"
 )
