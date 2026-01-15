@@ -1487,12 +1487,30 @@
     if (tabId === 'playground') loadModels();
   }
 
+  let authCheckAttempts = 0;
   async function checkAuth() {
+    // Prevent infinite retry loop - max 2 attempts
+    if (authCheckAttempts >= 2) {
+      console.warn("Max auth check attempts reached. Please refresh the page to try again.");
+      return;
+    }
+    authCheckAttempts++;
+    
     try {
       const res = await fetch(`/v0/management/get-auth-status?key=${MANAGEMENT_KEY}`, { headers: { 'Authorization': `Bearer ${MANAGEMENT_KEY}` } });
       if (res.status === 401 || res.status === 403) {
-        const newKey = prompt("Enter Management Key (e.g. setup-secret-key):");
-        if (newKey) { MANAGEMENT_KEY = newKey; localStorage.setItem('mgmt_key', newKey); location.reload(); }
+        // Clear invalid key from storage
+        localStorage.removeItem('mgmt_key');
+        const newKey = prompt("🔐 Authentication Failed\\n\\nYour key was rejected. Please enter the correct Management Secret Key:", "");
+        if (newKey) { 
+          MANAGEMENT_KEY = newKey; 
+          localStorage.setItem('mgmt_key', newKey); 
+          authCheckAttempts = 0; // Reset attempts for new key
+          location.reload(); 
+        } else {
+          // User cancelled - show error but don't loop
+          console.warn("Authentication cancelled by user.");
+        }
       }
     } catch (e) { console.error("Auth check failed", e); }
   }

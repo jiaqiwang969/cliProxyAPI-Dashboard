@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/router-for-me/CLIProxyAPI/v6/internal/database"
 	coreusage "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/usage"
 )
 
@@ -261,6 +262,22 @@ func (s *RequestStatistics) Record(ctx context.Context, record coreusage.Record)
 	s.requestsByHour[hourKey]++
 	s.tokensByDay[dayKey] += totalTokens
 	s.tokensByHour[hourKey] += totalTokens
+
+	// Persist to SQLite for history preservation across restarts
+	_ = database.InsertUsageLog(database.UsageLog{
+		Timestamp:    timestamp,
+		APIKey:       statsKey,
+		Model:        modelName,
+		InputTokens:  detail.InputTokens,
+		OutputTokens: detail.OutputTokens,
+		TotalTokens:  totalTokens,
+		IsFailure:    failed,
+		Source:       record.Source,
+		// DurationMs is not in record, but we could add it if needed
+	})
+
+	// Notify subscribers for real-time dashboard updates
+	s.notifySubscribers(record)
 }
 
 func (s *RequestStatistics) updateAPIStats(stats *apiStats, model string, detail RequestDetail) {
