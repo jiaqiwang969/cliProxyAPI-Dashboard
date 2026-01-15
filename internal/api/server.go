@@ -495,10 +495,12 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.GET("/usage/export", s.mgmt.ExportUsageStatistics)
 		mgmt.POST("/usage/import", s.mgmt.ImportUsageStatistics)
 
+		// Custom dashboard routes
 		mgmt.GET("/activity", s.mgmt.GetActivityLogs)
 		mgmt.GET("/activity/export", s.mgmt.ExportActivityLogs)
 		mgmt.GET("/stats/trends", s.mgmt.GetUsageTrends)
 		mgmt.GET("/events", s.mgmt.GetEvents)
+
 		mgmt.GET("/config", s.mgmt.GetConfig)
 		// mgmt.PUT("/config", s.mgmt.PutConfig) // Not implemented yet
 		mgmt.GET("/config/yaml", s.mgmt.GetConfigYAML)

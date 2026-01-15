@@ -18,6 +18,11 @@ gitstore/*
 objectstore/*
 refs/*
 
+# Static assets
+static/*
+!static/management.html
+!static/QR*
+
 # Logs (may contain request/response data)
 logs/*
 *.log

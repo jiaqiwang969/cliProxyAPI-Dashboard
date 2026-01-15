@@ -22,7 +22,6 @@ type usageImportPayload struct {
 }
 
 // GetUsageStatistics returns the in-memory request statistics snapshot.
-// GetUsageStatistics returns the in-memory request statistics snapshot.
 func (h *Handler) GetUsageStatistics(c *gin.Context) {
 	var snapshot usage.StatisticsSnapshot
 	if h != nil && h.usageStats != nil {

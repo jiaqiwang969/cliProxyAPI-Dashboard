@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/database"
 	coreusage "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/usage"
 )
 
@@ -20,13 +19,6 @@ var statisticsEnabled atomic.Bool
 
 func init() {
 	statisticsEnabled.Store(true)
-	
-	// Initialize Database (Best effort, using home dir) - REMOVED
-	// We allow the application (main.go) to initialize the database with the correct configuration.
-	// home, _ := os.UserHomeDir()
-	// configDir := filepath.Join(home, ".cliproxy")
-	// _ = database.Init(configDir)
-
 	coreusage.RegisterPlugin(NewLoggerPlugin())
 }
 
@@ -79,21 +71,6 @@ type RequestStatistics struct {
 	requestsByHour map[int]int64
 	tokensByDay    map[string]int64
 	tokensByHour   map[int]int64
-
-	subscribers   map[uint64]chan UsageEvent
-	subscribersMu sync.RWMutex
-	nextSubID     uint64
-}
-
-// UsageEvent represents a real-time usage activity event.
-type UsageEvent struct {
-	Timestamp time.Time     `json:"timestamp"`
-	APIKey    string        `json:"api_key"`
-	Model     string        `json:"model"`
-	Duration  time.Duration `json:"duration"`
-	Tokens    TokenStats    `json:"tokens"`
-	Failed    bool          `json:"failed"`
-	Source    string        `json:"source"`
 }
 
 // apiStats holds aggregated metrics for a single API key.
@@ -112,10 +89,9 @@ type modelStats struct {
 
 // RequestDetail stores the timestamp and token usage for a single request.
 type RequestDetail struct {
-	Timestamp time.Time     `json:"timestamp"`
-	Duration  time.Duration `json:"duration"`
-	Source    string        `json:"source"`
-	AuthIndex string        `json:"auth_index"`
+	Timestamp time.Time  `json:"timestamp"`
+	Source    string     `json:"source"`
+	AuthIndex string     `json:"auth_index"`
 	Tokens    TokenStats `json:"tokens"`
 	Failed    bool       `json:"failed"`
 }
@@ -135,9 +111,6 @@ type StatisticsSnapshot struct {
 	SuccessCount  int64 `json:"success_count"`
 	FailureCount  int64 `json:"failure_count"`
 	TotalTokens   int64 `json:"total_tokens"`
-	Cost24h       float64 `json:"cost_24h"`
-	Cost7d        float64 `json:"cost_7d"`
-	TotalCost     float64 `json:"total_cost"`
 
 	APIs map[string]APISnapshot `json:"apis"`
 
@@ -174,7 +147,6 @@ func NewRequestStatistics() *RequestStatistics {
 		requestsByHour: make(map[int]int64),
 		tokensByDay:    make(map[string]int64),
 		tokensByHour:   make(map[int]int64),
-		subscribers:    make(map[uint64]chan UsageEvent),
 	}
 }
 
@@ -226,7 +198,6 @@ func (s *RequestStatistics) Record(ctx context.Context, record coreusage.Record)
 	}
 	s.updateAPIStats(stats, modelName, RequestDetail{
 		Timestamp: timestamp,
-		Duration:  record.Duration,
 		Source:    record.Source,
 		AuthIndex: record.AuthIndex,
 		Tokens:    detail,
@@ -237,68 +208,6 @@ func (s *RequestStatistics) Record(ctx context.Context, record coreusage.Record)
 	s.requestsByHour[hourKey]++
 	s.tokensByDay[dayKey] += totalTokens
 	s.tokensByHour[hourKey] += totalTokens
-
-	// Persist to SQLite
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				// avoid crashing on broadcast panic
-			}
-		}()
-
-		// Broadcast real-time event
-		event := UsageEvent{
-			Timestamp: timestamp,
-			APIKey:    statsKey,
-			Model:     modelName,
-			Duration:  record.Duration,
-			Tokens:    detail,
-			Failed:    failed,
-			Source:    record.Source,
-		}
-		
-		s.subscribersMu.RLock()
-		for _, ch := range s.subscribers {
-			select {
-			case ch <- event:
-			default:
-				// Skip if channel is full/blocked to avoid slowing down processing
-			}
-		}
-		s.subscribersMu.RUnlock()
-
-		_ = database.InsertUsageLog(database.UsageLog{
-			Timestamp:    timestamp,
-			APIKey:       statsKey,
-			Model:        modelName,
-			InputTokens:  detail.InputTokens,
-			OutputTokens: detail.OutputTokens,
-			TotalTokens:  detail.TotalTokens,
-			IsFailure:    failed,
-			Source:       record.Source,
-			DurationMs:   0, // Not currently captured in Record
-			PromptText:     record.PromptText,
-			CompletionText: record.CompletionText,
-		})
-	}()
-}
-
-// Subscribe registers a new channel to receive real-time usage events.
-// It returns a channel for events and a cancel function to unsubscribe.
-func (s *RequestStatistics) Subscribe() (<-chan UsageEvent, func()) {
-	ch := make(chan UsageEvent, 100)
-	s.subscribersMu.Lock()
-	id := s.nextSubID
-	s.nextSubID++
-	s.subscribers[id] = ch
-	s.subscribersMu.Unlock()
-
-	return ch, func() {
-		s.subscribersMu.Lock()
-		delete(s.subscribers, id)
-		close(ch)
-		s.subscribersMu.Unlock()
-	}
 }
 
 func (s *RequestStatistics) updateAPIStats(stats *apiStats, model string, detail RequestDetail) {
@@ -312,9 +221,6 @@ func (s *RequestStatistics) updateAPIStats(stats *apiStats, model string, detail
 	modelStatsValue.TotalRequests++
 	modelStatsValue.TotalTokens += detail.Tokens.TotalTokens
 	modelStatsValue.Details = append(modelStatsValue.Details, detail)
-	if len(modelStatsValue.Details) > 100 {
-		modelStatsValue.Details = modelStatsValue.Details[len(modelStatsValue.Details)-100:]
-	}
 }
 
 // Snapshot returns a copy of the aggregated metrics for external consumption.
