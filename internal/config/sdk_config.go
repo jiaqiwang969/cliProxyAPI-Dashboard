@@ -20,6 +20,9 @@ type SDKConfig struct {
 	// APIKeys is a list of keys for authenticating clients to this proxy server.
 	APIKeys []string `yaml:"api-keys" json:"api-keys"`
 
+	// APIKeyMetadata stores optional metadata for API keys.
+	APIKeyMetadata map[string]APIKeyMeta `yaml:"api-key-metadata,omitempty" json:"api-key-metadata,omitempty"`
+
 	// Access holds request authentication provider configuration.
 	Access AccessConfig `yaml:"auth,omitempty" json:"auth,omitempty"`
 
@@ -29,6 +32,15 @@ type SDKConfig struct {
 	// NonStreamKeepAliveInterval controls how often blank lines are emitted for non-streaming responses.
 	// <= 0 disables keep-alives. Value is in seconds.
 	NonStreamKeepAliveInterval int `yaml:"nonstream-keepalive-interval,omitempty" json:"nonstream-keepalive-interval,omitempty"`
+}
+
+// APIKeyMeta holds optional metadata for an API key.
+type APIKeyMeta struct {
+	// Description is a human-readable description of the key.
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+
+	// Tags allows categorizing keys for filtering and organization.
+	Tags []string `yaml:"tags,omitempty" json:"tags,omitempty"`
 }
 
 // StreamingConfig holds server streaming behavior configuration.

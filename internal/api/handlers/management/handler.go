@@ -98,12 +98,7 @@ func (h *Handler) purgeStaleAttempts() {
 	}
 }
 
-// NewHandler creates a new management handler instance.
-func NewHandlerWithoutConfigFilePath(cfg *config.Config, manager *coreauth.Manager) *Handler {
-	return NewHandler(cfg, "", manager)
-}
-
-// NewHandler creates a new management handler instance.
+// NewHandlerWithoutConfigFilePath creates a new management handler instance without specifying a config file path.
 func NewHandlerWithoutConfigFilePath(cfg *config.Config, manager *coreauth.Manager) *Handler {
 	return NewHandler(cfg, "", manager)
 }

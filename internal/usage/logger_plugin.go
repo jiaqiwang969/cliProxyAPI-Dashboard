@@ -71,6 +71,11 @@ type RequestStatistics struct {
 	requestsByHour map[int]int64
 	tokensByDay    map[string]int64
 	tokensByHour   map[int]int64
+
+	// Pub/sub for real-time event streaming
+	subscriberMu sync.RWMutex
+	subscribers  map[chan any]struct{}
+	nextSubID    int
 }
 
 // apiStats holds aggregated metrics for a single API key.
@@ -112,6 +117,11 @@ type StatisticsSnapshot struct {
 	FailureCount  int64 `json:"failure_count"`
 	TotalTokens   int64 `json:"total_tokens"`
 
+	// Period-based costs
+	Cost24h   float64 `json:"cost_24h"`
+	Cost7d    float64 `json:"cost_7d"`
+	TotalCost float64 `json:"total_cost"`
+
 	APIs map[string]APISnapshot `json:"apis"`
 
 	RequestsByDay  map[string]int64 `json:"requests_by_day"`
@@ -147,6 +157,49 @@ func NewRequestStatistics() *RequestStatistics {
 		requestsByHour: make(map[int]int64),
 		tokensByDay:    make(map[string]int64),
 		tokensByHour:   make(map[int]int64),
+		subscribers:    make(map[chan any]struct{}),
+	}
+}
+
+// Subscribe returns a channel that receives real-time usage events and a cancel function to unsubscribe.
+func (s *RequestStatistics) Subscribe() (<-chan any, func()) {
+	if s == nil {
+		ch := make(chan any)
+		close(ch)
+		return ch, func() {}
+	}
+
+	ch := make(chan any, 100)
+
+	s.subscriberMu.Lock()
+	s.subscribers[ch] = struct{}{}
+	s.subscriberMu.Unlock()
+
+	cancel := func() {
+		s.subscriberMu.Lock()
+		delete(s.subscribers, ch)
+		s.subscriberMu.Unlock()
+		close(ch)
+	}
+
+	return ch, cancel
+}
+
+// notifySubscribers sends an event to all active subscribers.
+func (s *RequestStatistics) notifySubscribers(event any) {
+	if s == nil {
+		return
+	}
+
+	s.subscriberMu.RLock()
+	defer s.subscriberMu.RUnlock()
+
+	for ch := range s.subscribers {
+		select {
+		case ch <- event:
+		default:
+			// Channel full, skip to avoid blocking
+		}
 	}
 }
 

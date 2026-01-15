@@ -1135,7 +1135,8 @@ func AuthMiddleware(manager *sdkaccess.Manager) gin.HandlerFunc {
 				// We will implement RateLimiter in a separate step or file.
 				
 				// Success
-				c.Set("apiKey", "managed:"+managedKey.Label) // distinguishing prefix
+				c.Set("apiKey", managedKey.KeyPrefix) // Use KeyPrefix for usage tracking
+				c.Set("managedKeyLabel", managedKey.Label) // Store label for UI display
 				c.Set("accessProvider", "managed")
 				c.Set("managedKey", managedKey) // Store full object for Model middleware
 				c.Next()
