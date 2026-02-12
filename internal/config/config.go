@@ -126,6 +126,10 @@ type RemoteManagement struct {
 	// PanelGitHubRepository overrides the GitHub repository used to fetch the management panel asset.
 	// Accepts either a repository URL (https://github.com/org/repo) or an API releases endpoint.
 	PanelGitHubRepository string `yaml:"panel-github-repository"`
+	// DisableManagementAuth disables authentication requirement for management endpoints when true.
+	// WARNING: This is insecure and should only be used in trusted/internal environments.
+	// Default: false (authentication required).
+	DisableManagementAuth bool `yaml:"disable-management-auth"`
 }
 
 // QuotaExceeded defines the behavior when API quota limits are exceeded.

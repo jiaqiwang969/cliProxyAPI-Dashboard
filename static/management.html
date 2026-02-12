@@ -1488,31 +1488,59 @@
   }
 
   let authCheckAttempts = 0;
+  let isAuthenticated = false;
+
   async function checkAuth() {
-    // Prevent infinite retry loop - max 2 attempts
-    if (authCheckAttempts >= 2) {
-      console.warn("Max auth check attempts reached. Please refresh the page to try again.");
-      return;
+    // Prevent infinite retry loop - max 1 attempt per page load
+    if (authCheckAttempts >= 1) {
+      console.warn("Auth check already performed. Use manual retry if needed.");
+      return isAuthenticated;
     }
     authCheckAttempts++;
-    
+
     try {
-      const res = await fetch(`/v0/management/get-auth-status?key=${MANAGEMENT_KEY}`, { headers: { 'Authorization': `Bearer ${MANAGEMENT_KEY}` } });
+      // Single lightweight auth check - don't fetch full data yet
+      const res = await fetch(`/v0/management/get-auth-status?key=${MANAGEMENT_KEY}`, {
+        headers: { 'Authorization': `Bearer ${MANAGEMENT_KEY}` }
+      });
+
       if (res.status === 401 || res.status === 403) {
         // Clear invalid key from storage
         localStorage.removeItem('mgmt_key');
-        const newKey = prompt("🔐 Authentication Failed\\n\\nYour key was rejected. Please enter the correct Management Secret Key:", "");
-        if (newKey) { 
-          MANAGEMENT_KEY = newKey; 
-          localStorage.setItem('mgmt_key', newKey); 
-          authCheckAttempts = 0; // Reset attempts for new key
-          location.reload(); 
+        isAuthenticated = false;
+
+        // Show error message without reloading
+        const newKey = prompt(
+          "🔐 Authentication Failed\n\n" +
+          "Your key was rejected. Please enter the correct Management Secret Key:\n\n" +
+          "⚠️  Too many wrong attempts will ban your IP for 30 minutes!",
+          ""
+        );
+
+        if (newKey) {
+          MANAGEMENT_KEY = newKey;
+          localStorage.setItem('mgmt_key', newKey);
+          // Reset and retry - but don't reload to avoid request loop
+          authCheckAttempts = 0;
+          return await checkAuth(); // Retry with new key
         } else {
-          // User cancelled - show error but don't loop
+          // User cancelled
           console.warn("Authentication cancelled by user.");
+          document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0F1214;color:white;font-family:sans-serif;text-align:center;"><div><h1>🔒 Authentication Required</h1><p>Please refresh the page and enter a valid management key.</p><button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;background:#0075FF;color:white;border:none;border-radius:8px;cursor:pointer;">Refresh Page</button></div></div>';
+          return false;
         }
+      } else if (res.ok) {
+        // Successfully authenticated
+        isAuthenticated = true;
+        return true;
+      } else {
+        console.error('Unexpected auth response:', res.status);
+        return false;
       }
-    } catch (e) { console.error("Auth check failed", e); }
+    } catch (e) {
+      console.error("Auth check failed", e);
+      return false;
+    }
   }
 
   const providerColors = { gemini: 'bg-blue-900/40 border-blue-500/30', claude: 'bg-orange-900/40 border-orange-500/30', codex: 'bg-green-900/40 border-green-500/30', qwen: 'bg-purple-900/40 border-purple-500/30', iflow: 'bg-cyan-900/40 border-cyan-500/30', vertex: 'bg-red-900/40 border-red-500/30', antigravity: 'bg-yellow-900/30 border-yellow-500/30' };
@@ -1560,16 +1588,26 @@
   }
 
   async function fetchData() {
+    // Don't fetch if not authenticated
+    if (!isAuthenticated) {
+      console.warn('Skipping fetchData - not authenticated');
+      return;
+    }
+
     const headers = { 'Authorization': `Bearer ${MANAGEMENT_KEY}` };
     try {
-      const res = await fetch(`/v0/management/config?key=${MANAGEMENT_KEY}`, { headers }); const config = await res.json();
+      const res = await fetch(`/v0/management/config?key=${MANAGEMENT_KEY}`, { headers });
+      if (!res.ok) {
+        console.error('Config fetch failed:', res.status);
+        return;
+      }
+      const config = await res.json();
       const displayPort = config.port || 8317;
       document.getElementById('host-port').textContent = `0.0.0.0:${displayPort}`;
       document.getElementById('header-host-port').textContent = `0.0.0.0:${displayPort}`;
       document.getElementById('debug-mode').textContent = config.debug ? 'Enabled' : 'Disabled';
     } catch (e) {
-      // console.error(e);
-      // Suppress benign errors during init
+      console.error('fetchData error:', e);
     }
 
     try {
@@ -2555,7 +2593,17 @@
   setInterval(updateFooterStats, 1000);
 
   updateWelcomeMessage();
-  checkAuth(); fetchData(); setInterval(fetchData, 5000);
+  // Initialize: Check auth first, then fetch data only if authenticated
+  (async () => {
+    const authenticated = await checkAuth();
+    if (authenticated) {
+      await fetchData();
+      // Auto-refresh every 10 seconds (reduced to minimize requests)
+      setInterval(() => {
+        if (isAuthenticated) fetchData();
+      }, 10000);
+    }
+  })();
   // --- Advanced Keys Logic ---
   async function loadManagedKeys() {
     const listBody = document.getElementById('keys-table-body');

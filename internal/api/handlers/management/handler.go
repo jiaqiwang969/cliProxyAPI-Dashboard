@@ -140,9 +140,16 @@ func (h *Handler) Middleware() gin.HandlerFunc {
 		c.Header("X-CPA-COMMIT", buildinfo.Commit)
 		c.Header("X-CPA-BUILD-DATE", buildinfo.BuildDate)
 
+		// Check if authentication is disabled
+		cfg := h.cfg
+		if cfg != nil && cfg.RemoteManagement.DisableManagementAuth {
+			// Skip all authentication checks
+			c.Next()
+			return
+		}
+
 		clientIP := c.ClientIP()
 		localClient := clientIP == "127.0.0.1" || clientIP == "::1"
-		cfg := h.cfg
 		var (
 			allowRemote bool
 			secretHash  string
