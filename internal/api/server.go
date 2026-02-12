@@ -1124,12 +1124,8 @@ func AuthMiddleware(manager *sdkaccess.Manager) gin.HandlerFunc {
 			}
 		}
 
-		// 3. Fallback to Unauthorized with upstream structured error
-		statusCode := err.HTTPStatusCode()
-		if statusCode >= http.StatusInternalServerError {
-			log.Errorf("authentication middleware error: %v", err)
-		}
-		c.AbortWithStatusJSON(statusCode, gin.H{"error": err.Message})
+		// 3. Fallback to Unauthorized - both standard and managed key auth failed
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or missing API key"})
 	}
 }
 

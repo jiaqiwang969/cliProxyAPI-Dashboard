@@ -8,6 +8,9 @@ RUN go mod download
 
 COPY . .
 
+# Add custom dashboard dependencies not in upstream go.mod
+RUN go get modernc.org/sqlite && go get golang.org/x/time/rate
+
 ARG VERSION=dev
 ARG COMMIT=none
 ARG BUILD_DATE=unknown

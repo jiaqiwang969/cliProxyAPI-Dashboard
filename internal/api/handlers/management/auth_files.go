@@ -1410,8 +1410,8 @@ func (h *Handler) RequestAntigravityToken(c *gin.Context) {
 
 	RegisterOAuthSession(state, "antigravity")
 
+	var forwarder *callbackForwarder
 	if isWebUI {
-		var forwarder *callbackForwarder
 		targetURL, errTarget := h.managementCallbackURL("/antigravity/callback")
 		if errTarget != nil {
 			log.WithError(errTarget).Error("failed to compute antigravity callback target")
