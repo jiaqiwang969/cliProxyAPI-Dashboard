@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	configaccess "github.com/router-for-me/CLIProxyAPI/v6/internal/access/config_access"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/api"
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v6/sdk/access"
 	sdkAuth "github.com/router-for-me/CLIProxyAPI/v6/sdk/auth"
@@ -186,11 +187,8 @@ func (b *Builder) Build() (*Service, error) {
 		accessManager = sdkaccess.NewManager()
 	}
 
-	providers, err := sdkaccess.BuildProviders(&b.cfg.SDKConfig)
-	if err != nil {
-		return nil, err
-	}
-	accessManager.SetProviders(providers)
+	configaccess.Register(&b.cfg.SDKConfig)
+	accessManager.SetProviders(sdkaccess.RegisteredProviders())
 
 	coreManager := b.coreManager
 	if coreManager == nil {
@@ -215,7 +213,8 @@ func (b *Builder) Build() (*Service, error) {
 	}
 	// Attach a default RoundTripper provider so providers can opt-in per-auth transports.
 	coreManager.SetRoundTripperProvider(newDefaultRoundTripperProvider())
-	coreManager.SetOAuthModelMappings(b.cfg.OAuthModelMappings)
+	coreManager.SetConfig(b.cfg)
+	coreManager.SetOAuthModelAlias(b.cfg.OAuthModelAlias)
 
 	service := &Service{
 		cfg:            b.cfg,

@@ -1,103 +1,39 @@
-# 🚀 CLIProxy Manager Dashboard
+# CLI Proxy API
 
-<div align="center">
+English | [中文](README_CN.md)
 
-![CLIProxy](https://img.shields.io/badge/CLIProxy-v6.0-0075FF?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
-![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go)
+A proxy server that provides OpenAI/Gemini/Claude/Codex compatible API interfaces for CLI.
 
-[![GitHub Sponsor](https://img.shields.io/badge/Sponsor-❤️-ea4aaa?style=for-the-badge&logo=github-sponsors)](https://github.com/sponsors/0xAstroAlpha)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-☕-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/astroalpha)
+It now also supports OpenAI Codex (GPT models) and Claude Code via OAuth.
 
-[![GitHub Stars](https://img.shields.io/github/stars/0xAstroAlpha/cliProxyAPI-Dashboard?style=flat-square&logo=github)](https://github.com/0xAstroAlpha/cliProxyAPI-Dashboard/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/0xAstroAlpha/cliProxyAPI-Dashboard?style=flat-square&logo=github)](https://github.com/0xAstroAlpha/cliProxyAPI-Dashboard/network/members)
-[![GitHub Issues](https://img.shields.io/github/issues/0xAstroAlpha/cliProxyAPI-Dashboard?style=flat-square&logo=github)](https://github.com/0xAstroAlpha/cliProxyAPI-Dashboard/issues)
-[![Contributors](https://img.shields.io/github/contributors/0xAstroAlpha/cliProxyAPI-Dashboard?style=flat-square&logo=github)](https://github.com/0xAstroAlpha/cliProxyAPI-Dashboard/graphs/contributors)
+So you can use local or multi-account CLI access with OpenAI(include Responses)/Gemini/Claude-compatible clients and SDKs.
 
-**A modern, beautiful dashboard for managing your CLIProxy instances**
+## Sponsor
 
-[Dashboard Features](#-dashboard-features) • [CLIProxy Features](#-cliproxy-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Support](#-support--donations)
+[![z.ai](https://assets.router-for.me/english-4.7.png)](https://z.ai/subscribe?ic=8JVLJQFSKB)
 
-</div>
+This project is sponsored by Z.ai, supporting us with their GLM CODING PLAN.
 
+GLM CODING PLAN is a subscription service designed for AI coding, starting at just $3/month. It provides access to their flagship GLM-4.7 model across 10+ popular AI coding tools (Claude Code, Cline, Roo Code, etc.), offering developers top-tier, fast, and stable coding experiences.
 
-![CLIProxy Dashboard Preview](docs/Homepage.jpg)
-
+Get 10% OFF GLM CODING PLAN：https://z.ai/subscribe?ic=8JVLJQFSKB
 
 ---
 
-## 📢 Recent Updates (v6.0.1)
+<table>
+<tbody>
+<tr>
+<td width="180"><a href="https://www.packyapi.com/register?aff=cliproxyapi"><img src="./assets/packycode.png" alt="PackyCode" width="150"></a></td>
+<td>Thanks to PackyCode for sponsoring this project! PackyCode is a reliable and efficient API relay service provider, offering relay services for Claude Code, Codex, Gemini, and more. PackyCode provides special discounts for our software users: register using <a href="https://www.packyapi.com/register?aff=cliproxyapi">this link</a> and enter the "cliproxyapi" promo code during recharge to get 10% off.</td>
+</tr>
+<tr>
+<td width="180"><a href="https://www.aicodemirror.com/register?invitecode=TJNAIF"><img src="./assets/aicodemirror.png" alt="AICodeMirror" width="150"></a></td>
+<td>Thanks to AICodeMirror for sponsoring this project! AICodeMirror provides official high-stability relay services for Claude Code / Codex / Gemini CLI, with enterprise-grade concurrency, fast invoicing, and 24/7 dedicated technical support. Claude Code / Codex / Gemini official channels at 38% / 2% / 9% of original price, with extra discounts on top-ups! AICodeMirror offers special benefits for CLIProxyAPI users: register via <a href="https://www.aicodemirror.com/register?invitecode=TJNAIF">this link</a> to enjoy 20% off your first top-up, and enterprise customers can get up to 25% off!</td>
+</tr>
+</tbody>
+</table>
 
-- **Fixed Missing Custom UI**: The custom management dashboard is now correctly baked into the Docker image, ensuring it appears for all users without manual volume mounting.
-- **Fixed Usage Persistence**: Resolved an issue where `usage.db` was initializing in an ephemeral directory. Local history now persists correctly across container restarts.
-- **Restored Legacy Data**: Automatically migrated legacy local data (from native runs) to the Docker volume.
-
----
-
-## 📖 Documentation
-
-| Document | Description |
-|----------|-------------|
-| **[Dashboard Guide](docs/DASHBOARD.md)** | Hướng dẫn sử dụng Dashboard (Tiếng Việt) |
-| **[SDK Usage](docs/sdk-usage.md)** | How to use the Go SDK |
-| **[SDK Advanced](docs/sdk-advanced.md)** | Advanced SDK features |
-| **[SDK Access](docs/sdk-access.md)** | Access control documentation |
-| **[SDK Watcher](docs/sdk-watcher.md)** | File watcher documentation |
-
----
-
-## ✨ Dashboard Features
-
-The CLIProxy Manager Dashboard provides a **premium Vision UI** experience for monitoring and managing your proxy server.
-
-### 🎯 Overview Panel
-- **Real-time Server Status** - Live connection monitoring with animated indicators
-- **Usage Statistics** - Total requests, tokens, success/failure rates at a glance
-- **Saved Cost Display** - Track how much you've saved with dynamic emoji indicators (🪙💸💵💰💎🚀)
-- **Sparkline Charts** - Mini trend visualizations for quick insights
-
-### 🏆 Model Leaderboard
-- **Top 10 Models Ranking** - See your most-used models with medal icons (🥇🥈🥉)
-- **Request & Token Badges** - Beautiful stat badges for easy comparison
-- **Real-time Updates** - Data refreshes automatically every 5 seconds
-
-### 📊 Activity Monitor
-- **Usage Trends Chart** - Gradient area chart with smooth animations
-- **Activity History Table** - Zebra-striped rows with status pills
-- **Advanced Filtering** - Filter by model, status, and time range
-- **Request Details Modal** - View full request/response data
-
-### 🔐 Account Health Grid
-- **Multi-Provider Support** - Gemini, Claude, OpenAI, Qwen, iFlow, Vertex
-- **OAuth Authentication** - One-click login for supported providers
-- **Status Badges** - Active, refreshing, error states with visual indicators
-- **Hover Effects** - Cards scale and glow on interaction
-
-### 💬 AI Playground
-- **Multi-Model Chat** - Test any model directly in the dashboard
-- **System Prompts** - Customize assistant behavior
-- **Parameter Controls** - Temperature, Top P, Max Tokens sliders
-- **Thinking Process** - View reasoning (for supported models)
-- **Image Attachments** - Upload images for vision models
-
-### 🎨 UI/UX Polish
-- **Welcome Message** - Dynamic greeting based on time of day (☀️🌤️🌙)
-- **Footer Stats Bar** - Uptime counter, last sync time, version info
-- **Quick Actions FAB** - Floating button for common actions
-- **Glassmorphism Design** - Modern frosted glass effects
-- **Responsive Layout** - Works on desktop and mobile
-
----
-
-## 🔧 CLIProxy Features
-
-This dashboard is built for [**CLIProxyAPI**](https://github.com/router-for-me/CLIProxyAPI) - a powerful proxy server that provides **OpenAI/Gemini/Claude/Codex compatible API interfaces** for CLI tools and coding assistants.
-
-> 📚 **Original Project:** [github.com/router-for-me/CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)
-> 
-> 📖 **Documentation:** [help.router-for.me](https://help.router-for.me/)
-
-### Core Features
+## Overview
 
 - OpenAI/Gemini/Claude compatible API endpoints for CLI models
 - OpenAI Codex support (GPT models) via OAuth login
@@ -108,195 +44,122 @@ This dashboard is built for [**CLIProxyAPI**](https://github.com/router-for-me/C
 - Streaming and non-streaming responses
 - Function calling/tools support
 - Multimodal input support (text and images)
-- Multiple accounts with round-robin load balancing
-- Simple CLI authentication flows
+- Multiple accounts with round-robin load balancing (Gemini, OpenAI, Claude, Qwen and iFlow)
+- Simple CLI authentication flows (Gemini, OpenAI, Claude, Qwen and iFlow)
 - Generative Language API Key support
+- AI Studio Build multi-account load balancing
+- Gemini CLI multi-account load balancing
+- Claude Code multi-account load balancing
+- Qwen Code multi-account load balancing
+- iFlow multi-account load balancing
+- OpenAI Codex multi-account load balancing
 - OpenAI-compatible upstream providers via config (e.g., OpenRouter)
-- Reusable Go SDK for embedding the proxy
+- Reusable Go SDK for embedding the proxy (see `docs/sdk-usage.md`)
 
-### Supported Providers
+## Getting Started
 
-| Provider | Features |
-|----------|----------|
-| **Google Gemini** | AI Studio & Gemini CLI multi-account |
-| **Anthropic Claude** | Claude Code OAuth + load balancing |
-| **OpenAI Codex** | GPT models via OAuth |
-| **Alibaba Qwen** | Qwen Code support |
-| **iFlow** | iFlow integration |
-| **Vertex AI** | Service account authentication |
+CLIProxyAPI Guides: [https://help.router-for.me/](https://help.router-for.me/)
 
-### Amp CLI Support
+## Management API
 
-CLIProxyAPI includes integrated support for [Amp CLI](https://ampcode.com) and Amp IDE extensions:
+see [MANAGEMENT_API.md](https://help.router-for.me/management/api)
 
-- Provider route aliases for Amp's API patterns
-- Management proxy for OAuth authentication
+## Amp CLI Support
+
+CLIProxyAPI includes integrated support for [Amp CLI](https://ampcode.com) and Amp IDE extensions, enabling you to use your Google/ChatGPT/Claude OAuth subscriptions with Amp's coding tools:
+
+- Provider route aliases for Amp's API patterns (`/api/provider/{provider}/v1...`)
+- Management proxy for OAuth authentication and account features
 - Smart model fallback with automatic routing
-- Model mapping to route unavailable models to alternatives
+- **Model mapping** to route unavailable models to alternatives (e.g., `claude-opus-4.5` → `claude-sonnet-4`)
+- Security-first design with localhost-only management endpoints
 
 **→ [Complete Amp CLI Integration Guide](https://help.router-for.me/agent-client/amp-cli.html)**
 
----
+## SDK Docs
 
-## 🚀 Quick Start
+- Usage: [docs/sdk-usage.md](docs/sdk-usage.md)
+- Advanced (executors & translators): [docs/sdk-advanced.md](docs/sdk-advanced.md)
+- Access: [docs/sdk-access.md](docs/sdk-access.md)
+- Watcher: [docs/sdk-watcher.md](docs/sdk-watcher.md)
+- Custom Provider Example: `examples/custom-provider`
 
-### Prerequisites
-- **Docker** (recommended) or **Go 1.21+**
-- A terminal/command line
+## Contributing
 
----
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-### Step 1: Clone the Repository
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-```bash
-git clone https://github.com/0xAstroAlpha/cliProxyAPI-Dashboard.git
-cd cliProxyAPI-Dashboard
-```
+## Who is with us?
 
----
+Those projects are based on CLIProxyAPI:
 
-### Step 2: Create Configuration File
+### [vibeproxy](https://github.com/automazeio/vibeproxy)
 
-```bash
-cp config.example.yaml config.yaml
-```
+Native macOS menu bar app to use your Claude Code & ChatGPT subscriptions with AI coding tools - no API keys needed
 
----
+### [Subtitle Translator](https://github.com/VjayC/SRT-Subtitle-Translator-Validator)
 
-### Step 3: Review Key Configuration (Optional)
+Browser-based tool to translate SRT subtitles using your Gemini subscription via CLIProxyAPI with automatic validation/error correction - no API keys needed
 
-The default `config.yaml` is ready to use with these settings:
+### [CCS (Claude Code Switch)](https://github.com/kaitranntt/ccs)
 
-| Setting | Default Value | Description |
-|---------|---------------|-------------|
-| `remote-management.secret-key` | `setup-secret-key` | Password to access the dashboard |
-| `remote-management.allow-remote` | `true` | Allow access from any IP |
-| `api-keys[0]` | `sk-antigravity-client-key` | API key for making AI requests |
-| `logging-to-file` | `true` | Enable logs tab in dashboard |
-| `usage-statistics-enabled` | `true` | Enable activity tracking |
+CLI wrapper for instant switching between multiple Claude accounts and alternative models (Gemini, Codex, Antigravity) via CLIProxyAPI OAuth - no API keys needed
 
-> [!TIP]
-> For production, change `secret-key` to a strong password!
+### [ProxyPal](https://github.com/heyhuynhgiabuu/proxypal)
 
----
+Native macOS GUI for managing CLIProxyAPI: configure providers, model mappings, and endpoints via OAuth - no API keys needed.
 
-### Step 4: Build and Run with Docker
+### [Quotio](https://github.com/nguyenphutrong/quotio)
 
-```bash
-docker-compose up -d --build
-```
+Native macOS menu bar app that unifies Claude, Gemini, OpenAI, Qwen, and Antigravity subscriptions with real-time quota tracking and smart auto-failover for AI coding tools like Claude Code, OpenCode, and Droid - no API keys needed.
 
-Wait for the build to complete (first time may take 2-3 minutes).
+### [CodMate](https://github.com/loocor/CodMate)
 
----
+Native macOS SwiftUI app for managing CLI AI sessions (Codex, Claude Code, Gemini CLI) with unified provider management, Git review, project organization, global search, and terminal integration. Integrates CLIProxyAPI to provide OAuth authentication for Codex, Claude, Gemini, Antigravity, and Qwen Code, with built-in and third-party provider rerouting through a single proxy endpoint - no API keys needed for OAuth providers.
 
-### Step 5: Access the Dashboard
+### [ProxyPilot](https://github.com/Finesssee/ProxyPilot)
 
-Open your browser and go to:
+Windows-native CLIProxyAPI fork with TUI, system tray, and multi-provider OAuth for AI coding tools - no API keys needed.
 
-**🌐 [http://localhost:8317/management.html](http://localhost:8317/management.html)**
+### [Claude Proxy VSCode](https://github.com/uzhao/claude-proxy-vscode)
 
-When prompted, enter the secret key: `setup-secret-key`
+VSCode extension for quick switching between Claude Code models, featuring integrated CLIProxyAPI as its backend with automatic background lifecycle management.
 
----
+### [ZeroLimit](https://github.com/0xtbug/zero-limit)
 
-### Step 6: Test the API
+Windows desktop app built with Tauri + React for monitoring AI coding assistant quotas via CLIProxyAPI. Track usage across Gemini, Claude, OpenAI Codex, and Antigravity accounts with real-time dashboard, system tray integration, and one-click proxy control - no API keys needed.
 
-Use curl to verify the API is working:
+### [CPA-XXX Panel](https://github.com/ferretgeek/CPA-X)
 
-```bash
-curl -X POST http://localhost:8317/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-antigravity-client-key" \
-  -d '{
-    "model": "gemini-2.5-flash",
-    "messages": [{"role": "user", "content": "Hello!"}]
-  }'
-```
+A lightweight web admin panel for CLIProxyAPI with health checks, resource monitoring, real-time logs, auto-update, request statistics and pricing display. Supports one-click installation and systemd service.
 
-> [!NOTE]
-> The API acts as a proxy. You need to configure AI provider credentials (Gemini, Claude, etc.) in the dashboard's **Config** tab or via `config.yaml` for actual AI responses.
+### [CLIProxyAPI Tray](https://github.com/kitephp/CLIProxyAPI_Tray)
 
----
+A Windows tray application implemented using PowerShell scripts, without relying on any third-party libraries. The main features include: automatic creation of shortcuts, silent running, password management, channel switching (Main / Plus), and automatic downloading and updating.
 
-### Alternative: Run with Go
+### [霖君](https://github.com/wangdabaoqq/LinJun)
 
-```bash
-# Install dependencies
-go mod download
+霖君 is a cross-platform desktop application for managing AI programming assistants, supporting macOS, Windows, and Linux systems. Unified management of Claude Code, Gemini CLI, OpenAI Codex, Qwen Code, and other AI coding tools, with local proxy for multi-account quota tracking and one-click configuration.
 
-# Run the server
-go run cmd/server/main.go
-```
+> [!NOTE]  
+> If you developed a project based on CLIProxyAPI, please open a PR to add it to this list.
 
----
+## More choices
 
-## 🔧 Troubleshooting
+Those projects are ports of CLIProxyAPI or inspired by it:
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| **Dashboard shows 404** | `secret-key` is empty | Set `secret-key` in `config.yaml` |
-| **Popup keeps asking for key** | `allow-remote: false` | Set `allow-remote: true` in `config.yaml` |
-| **Logs tab shows 400 error** | `logging-to-file: false` | Set `logging-to-file: true` |
-| **Activity tab is empty** | `usage-statistics-enabled: false` | Set `usage-statistics-enabled: true` |
-| **Playground returns 401** | Wrong API key | Use `sk-antigravity-client-key` or add your key to `api-keys` |
-| **Dashboard looks different** | Auto-update overwrote files | Ensure `MANAGEMENT_AUTO_UPDATE: "false"` in `docker-compose.yml` |
-| **Changes not applying** | Old Docker image | Run `docker-compose up -d --build` |
+### [9Router](https://github.com/decolua/9router)
 
----
+A Next.js implementation inspired by CLIProxyAPI, easy to install and use, built from scratch with format translation (OpenAI/Claude/Gemini/Ollama), combo system with auto-fallback, multi-account management with exponential backoff, a Next.js web dashboard, and support for CLI tools (Cursor, Claude Code, Cline, RooCode) - no API keys needed.
 
-## 📡 API Endpoints
+> [!NOTE]  
+> If you have developed a port of CLIProxyAPI or a project inspired by it, please open a PR to add it to this list.
 
-Once running, the proxy provides these OpenAI-compatible endpoints:
+## License
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/chat/completions` | POST | Chat completions (GPT/Claude/Gemini) |
-| `/v1/models` | GET | List available models |
-| `/v1/completions` | POST | Text completions |
-| `/management.html` | GET | Dashboard UI |
-
-**Base URL:** `http://localhost:8317`
-
-**Authentication:** `Authorization: Bearer <your-api-key>`
-
----
-
-## 💖 Support & Donations
-
-If you find this project useful, consider supporting the development!
-
-### ☕ Buy Me a Coffee
-
-| Method | Address/Link |
-|--------|--------------|
-| 🇻🇳 **Vietnam (QR)** | Vietcombank QR available in Dashboard |
-| 💳 **PayPal** | `wikigamingmovies@gmail.com` |
-| 💚 **USDT (TRC20)** | `TNGsaurWeFhaPPs1yxJ3AY15j1tDecX7ya` |
-| 💛 **USDT (BEP20)** | `0x463695638788279F234386a77E0afA2Ee87b57F5` |
-| 💜 **Solana (SOL)** | `HkgpzujF8uTBuYEYGSFMnmGzBYmEFyajzTiZacRtXzTr` |
-
----
-
-## 👨‍💻 Credits
-
-| Role | Credit |
-|------|--------|
-| **Dashboard UI/UX** | [Brian Le](https://www.facebook.com/lehuyducanh/) |
-| **CLIProxyAPI** | [router-for-me](https://github.com/router-for-me/CLIProxyAPI) |
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-
-**⭐ Star the original project: [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)**
-
-Made with ❤️ by the CLIProxy community
-
-</div>
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

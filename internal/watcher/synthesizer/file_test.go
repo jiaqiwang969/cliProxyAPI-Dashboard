@@ -69,10 +69,12 @@ func TestFileSynthesizer_Synthesize_ValidAuthFile(t *testing.T) {
 
 	// Create a valid auth file
 	authData := map[string]any{
-		"type":      "claude",
-		"email":     "test@example.com",
-		"proxy_url": "http://proxy.local",
-		"prefix":    "test-prefix",
+		"type":            "claude",
+		"email":           "test@example.com",
+		"proxy_url":       "http://proxy.local",
+		"prefix":          "test-prefix",
+		"disable_cooling": true,
+		"request_retry":   2,
 	}
 	data, _ := json.Marshal(authData)
 	err := os.WriteFile(filepath.Join(tempDir, "claude-auth.json"), data, 0644)
@@ -107,6 +109,12 @@ func TestFileSynthesizer_Synthesize_ValidAuthFile(t *testing.T) {
 	}
 	if auths[0].ProxyURL != "http://proxy.local" {
 		t.Errorf("expected proxy_url http://proxy.local, got %s", auths[0].ProxyURL)
+	}
+	if v, ok := auths[0].Metadata["disable_cooling"].(bool); !ok || !v {
+		t.Errorf("expected disable_cooling true, got %v", auths[0].Metadata["disable_cooling"])
+	}
+	if v, ok := auths[0].Metadata["request_retry"].(float64); !ok || int(v) != 2 {
+		t.Errorf("expected request_retry 2, got %v", auths[0].Metadata["request_retry"])
 	}
 	if auths[0].Status != coreauth.StatusActive {
 		t.Errorf("expected status active, got %s", auths[0].Status)
@@ -289,6 +297,117 @@ func TestFileSynthesizer_Synthesize_PrefixValidation(t *testing.T) {
 	}
 }
 
+func TestFileSynthesizer_Synthesize_PriorityParsing(t *testing.T) {
+	tests := []struct {
+		name     string
+		priority any
+		want     string
+		hasValue bool
+	}{
+		{
+			name:     "string with spaces",
+			priority: " 10 ",
+			want:     "10",
+			hasValue: true,
+		},
+		{
+			name:     "number",
+			priority: 8,
+			want:     "8",
+			hasValue: true,
+		},
+		{
+			name:     "invalid string",
+			priority: "1x",
+			hasValue: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			authData := map[string]any{
+				"type":     "claude",
+				"priority": tt.priority,
+			}
+			data, _ := json.Marshal(authData)
+			errWriteFile := os.WriteFile(filepath.Join(tempDir, "auth.json"), data, 0644)
+			if errWriteFile != nil {
+				t.Fatalf("failed to write auth file: %v", errWriteFile)
+			}
+
+			synth := NewFileSynthesizer()
+			ctx := &SynthesisContext{
+				Config:      &config.Config{},
+				AuthDir:     tempDir,
+				Now:         time.Now(),
+				IDGenerator: NewStableIDGenerator(),
+			}
+
+			auths, errSynthesize := synth.Synthesize(ctx)
+			if errSynthesize != nil {
+				t.Fatalf("unexpected error: %v", errSynthesize)
+			}
+			if len(auths) != 1 {
+				t.Fatalf("expected 1 auth, got %d", len(auths))
+			}
+
+			value, ok := auths[0].Attributes["priority"]
+			if tt.hasValue {
+				if !ok {
+					t.Fatal("expected priority attribute to be set")
+				}
+				if value != tt.want {
+					t.Fatalf("expected priority %q, got %q", tt.want, value)
+				}
+				return
+			}
+			if ok {
+				t.Fatalf("expected priority attribute to be absent, got %q", value)
+			}
+		})
+	}
+}
+
+func TestFileSynthesizer_Synthesize_OAuthExcludedModelsMerged(t *testing.T) {
+	tempDir := t.TempDir()
+	authData := map[string]any{
+		"type":            "claude",
+		"excluded_models": []string{"custom-model", "MODEL-B"},
+	}
+	data, _ := json.Marshal(authData)
+	errWriteFile := os.WriteFile(filepath.Join(tempDir, "auth.json"), data, 0644)
+	if errWriteFile != nil {
+		t.Fatalf("failed to write auth file: %v", errWriteFile)
+	}
+
+	synth := NewFileSynthesizer()
+	ctx := &SynthesisContext{
+		Config: &config.Config{
+			OAuthExcludedModels: map[string][]string{
+				"claude": {"shared", "model-b"},
+			},
+		},
+		AuthDir:     tempDir,
+		Now:         time.Now(),
+		IDGenerator: NewStableIDGenerator(),
+	}
+
+	auths, errSynthesize := synth.Synthesize(ctx)
+	if errSynthesize != nil {
+		t.Fatalf("unexpected error: %v", errSynthesize)
+	}
+	if len(auths) != 1 {
+		t.Fatalf("expected 1 auth, got %d", len(auths))
+	}
+
+	got := auths[0].Attributes["excluded_models"]
+	want := "custom-model,model-b,shared"
+	if got != want {
+		t.Fatalf("expected excluded_models %q, got %q", want, got)
+	}
+}
+
 func TestSynthesizeGeminiVirtualAuths_NilInputs(t *testing.T) {
 	now := time.Now()
 
@@ -336,9 +455,11 @@ func TestSynthesizeGeminiVirtualAuths_MultiProject(t *testing.T) {
 		},
 	}
 	metadata := map[string]any{
-		"project_id": "project-a, project-b, project-c",
-		"email":      "test@example.com",
-		"type":       "gemini",
+		"project_id":      "project-a, project-b, project-c",
+		"email":           "test@example.com",
+		"type":            "gemini",
+		"request_retry":   2,
+		"disable_cooling": true,
 	}
 
 	virtuals := SynthesizeGeminiVirtualAuths(primary, metadata, now)
@@ -375,6 +496,12 @@ func TestSynthesizeGeminiVirtualAuths_MultiProject(t *testing.T) {
 		}
 		if v.ProxyURL != "http://proxy.local" {
 			t.Errorf("expected proxy_url http://proxy.local, got %s", v.ProxyURL)
+		}
+		if vv, ok := v.Metadata["disable_cooling"].(bool); !ok || !vv {
+			t.Errorf("expected disable_cooling true, got %v", v.Metadata["disable_cooling"])
+		}
+		if vv, ok := v.Metadata["request_retry"].(int); !ok || vv != 2 {
+			t.Errorf("expected request_retry 2, got %v", v.Metadata["request_retry"])
 		}
 		if v.Attributes["runtime_only"] != "true" {
 			t.Error("expected runtime_only=true")
@@ -517,6 +644,7 @@ func TestFileSynthesizer_Synthesize_MultiProjectGemini(t *testing.T) {
 		"type":       "gemini",
 		"email":      "multi@example.com",
 		"project_id": "project-a, project-b, project-c",
+		"priority":   " 10 ",
 	}
 	data, _ := json.Marshal(authData)
 	err := os.WriteFile(filepath.Join(tempDir, "gemini-multi.json"), data, 0644)
@@ -549,6 +677,9 @@ func TestFileSynthesizer_Synthesize_MultiProjectGemini(t *testing.T) {
 	if primary.Status != coreauth.StatusDisabled {
 		t.Errorf("expected primary status disabled, got %s", primary.Status)
 	}
+	if gotPriority := primary.Attributes["priority"]; gotPriority != "10" {
+		t.Errorf("expected primary priority 10, got %q", gotPriority)
+	}
 
 	// Remaining auths should be virtuals
 	for i := 1; i < 4; i++ {
@@ -558,6 +689,9 @@ func TestFileSynthesizer_Synthesize_MultiProjectGemini(t *testing.T) {
 		}
 		if v.Attributes["gemini_virtual_parent"] != primary.ID {
 			t.Errorf("expected virtual %d parent to be %s, got %s", i, primary.ID, v.Attributes["gemini_virtual_parent"])
+		}
+		if gotPriority := v.Attributes["priority"]; gotPriority != "10" {
+			t.Errorf("expected virtual %d priority 10, got %q", i, gotPriority)
 		}
 	}
 }

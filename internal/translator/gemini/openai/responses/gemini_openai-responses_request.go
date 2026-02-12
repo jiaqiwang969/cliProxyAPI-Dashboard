@@ -1,11 +1,9 @@
 package responses
 
 import (
-	"bytes"
 	"strings"
 
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/translator/gemini/common"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/util"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -13,7 +11,7 @@ import (
 const geminiResponsesThoughtSignature = "skip_thought_signature_validator"
 
 func ConvertOpenAIResponsesRequestToGemini(modelName string, inputRawJSON []byte, stream bool) []byte {
-	rawJSON := bytes.Clone(inputRawJSON)
+	rawJSON := inputRawJSON
 
 	// Note: modelName and stream parameters are part of the fixed method signature
 	_ = modelName // Unused but required by interface
@@ -119,19 +117,29 @@ func ConvertOpenAIResponsesRequestToGemini(modelName string, inputRawJSON []byte
 			switch itemType {
 			case "message":
 				if strings.EqualFold(itemRole, "system") {
-					if contentArray := item.Get("content"); contentArray.Exists() && contentArray.IsArray() {
-						var builder strings.Builder
-						contentArray.ForEach(func(_, contentItem gjson.Result) bool {
-							text := contentItem.Get("text").String()
-							if builder.Len() > 0 && text != "" {
-								builder.WriteByte('\n')
-							}
-							builder.WriteString(text)
-							return true
-						})
-						if !gjson.Get(out, "system_instruction").Exists() {
-							systemInstr := `{"parts":[{"text":""}]}`
-							systemInstr, _ = sjson.Set(systemInstr, "parts.0.text", builder.String())
+					if contentArray := item.Get("content"); contentArray.Exists() {
+						systemInstr := ""
+						if systemInstructionResult := gjson.Get(out, "system_instruction"); systemInstructionResult.Exists() {
+							systemInstr = systemInstructionResult.Raw
+						} else {
+							systemInstr = `{"parts":[]}`
+						}
+
+						if contentArray.IsArray() {
+							contentArray.ForEach(func(_, contentItem gjson.Result) bool {
+								part := `{"text":""}`
+								text := contentItem.Get("text").String()
+								part, _ = sjson.Set(part, "text", text)
+								systemInstr, _ = sjson.SetRaw(systemInstr, "parts.-1", part)
+								return true
+							})
+						} else if contentArray.Type == gjson.String {
+							part := `{"text":""}`
+							part, _ = sjson.Set(part, "text", contentArray.String())
+							systemInstr, _ = sjson.SetRaw(systemInstr, "parts.-1", part)
+						}
+
+						if systemInstr != `{"parts":[]}` {
 							out, _ = sjson.SetRaw(out, "system_instruction", systemInstr)
 						}
 					}
@@ -238,8 +246,22 @@ func ConvertOpenAIResponsesRequestToGemini(modelName string, inputRawJSON []byte
 					})
 
 					flush()
-				}
+				} else if contentArray.Type == gjson.String {
+					effRole := "user"
+					if itemRole != "" {
+						switch strings.ToLower(itemRole) {
+						case "assistant", "model":
+							effRole = "model"
+						default:
+							effRole = strings.ToLower(itemRole)
+						}
+					}
 
+					one := `{"role":"","parts":[{"text":""}]}`
+					one, _ = sjson.Set(one, "role", effRole)
+					one, _ = sjson.Set(one, "parts.0.text", contentArray.String())
+					out, _ = sjson.SetRaw(out, "contents.-1", one)
+				}
 			case "function_call":
 				// Handle function calls - convert to model message with functionCall
 				name := item.Get("name").String()
@@ -299,6 +321,15 @@ func ConvertOpenAIResponsesRequestToGemini(modelName string, inputRawJSON []byte
 				}
 				functionContent, _ = sjson.SetRaw(functionContent, "parts.-1", functionResponse)
 				out, _ = sjson.SetRaw(out, "contents.-1", functionContent)
+
+			case "reasoning":
+				thoughtContent := `{"role":"model","parts":[]}`
+				thought := `{"text":"","thoughtSignature":"","thought":true}`
+				thought, _ = sjson.Set(thought, "text", item.Get("summary.0.text").String())
+				thought, _ = sjson.Set(thought, "thoughtSignature", item.Get("encrypted_content").String())
+
+				thoughtContent, _ = sjson.SetRaw(thoughtContent, "parts.-1", thought)
+				out, _ = sjson.SetRaw(out, "contents.-1", thoughtContent)
 			}
 		}
 	} else if input.Exists() && input.Type == gjson.String {
@@ -388,31 +419,19 @@ func ConvertOpenAIResponsesRequestToGemini(modelName string, inputRawJSON []byte
 		out, _ = sjson.Set(out, "generationConfig.stopSequences", sequences)
 	}
 
-	// OpenAI official reasoning fields take precedence
-	// Only convert for models that use numeric budgets (not discrete levels).
-	hasOfficialThinking := root.Get("reasoning.effort").Exists()
-	if hasOfficialThinking && util.ModelSupportsThinking(modelName) && !util.ModelUsesThinkingLevels(modelName) {
-		reasoningEffort := root.Get("reasoning.effort")
-		out = string(util.ApplyReasoningEffortToGemini([]byte(out), reasoningEffort.String()))
-	}
-
-	// Cherry Studio extension (applies only when official fields are missing)
-	// Only apply for models that use numeric budgets, not discrete levels.
-	if !hasOfficialThinking && util.ModelSupportsThinking(modelName) && !util.ModelUsesThinkingLevels(modelName) {
-		if tc := root.Get("extra_body.google.thinking_config"); tc.Exists() && tc.IsObject() {
-			var setBudget bool
-			var budget int
-			if v := tc.Get("thinking_budget"); v.Exists() {
-				budget = int(v.Int())
-				out, _ = sjson.Set(out, "generationConfig.thinkingConfig.thinkingBudget", budget)
-				setBudget = true
-			}
-			if v := tc.Get("include_thoughts"); v.Exists() {
-				out, _ = sjson.Set(out, "generationConfig.thinkingConfig.include_thoughts", v.Bool())
-			} else if setBudget {
-				if budget != 0 {
-					out, _ = sjson.Set(out, "generationConfig.thinkingConfig.include_thoughts", true)
-				}
+	// Apply thinking configuration: convert OpenAI Responses API reasoning.effort to Gemini thinkingConfig.
+	// Inline translation-only mapping; capability checks happen later in ApplyThinking.
+	re := root.Get("reasoning.effort")
+	if re.Exists() {
+		effort := strings.ToLower(strings.TrimSpace(re.String()))
+		if effort != "" {
+			thinkingPath := "generationConfig.thinkingConfig"
+			if effort == "auto" {
+				out, _ = sjson.Set(out, thinkingPath+".thinkingBudget", -1)
+				out, _ = sjson.Set(out, thinkingPath+".includeThoughts", true)
+			} else {
+				out, _ = sjson.Set(out, thinkingPath+".thinkingLevel", effort)
+				out, _ = sjson.Set(out, thinkingPath+".includeThoughts", effort != "none")
 			}
 		}
 	}

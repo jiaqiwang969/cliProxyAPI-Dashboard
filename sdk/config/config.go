@@ -17,9 +17,10 @@ type StreamingConfig = internalconfig.StreamingConfig
 type TLSConfig = internalconfig.TLSConfig
 type RemoteManagement = internalconfig.RemoteManagement
 type AmpCode = internalconfig.AmpCode
-type ModelNameMapping = internalconfig.ModelNameMapping
+type OAuthModelAlias = internalconfig.OAuthModelAlias
 type PayloadConfig = internalconfig.PayloadConfig
 type PayloadRule = internalconfig.PayloadRule
+type PayloadFilterRule = internalconfig.PayloadFilterRule
 type PayloadModelRule = internalconfig.PayloadModelRule
 
 type GeminiKey = internalconfig.GeminiKey
@@ -34,14 +35,8 @@ type OpenAICompatibilityModel = internalconfig.OpenAICompatibilityModel
 type TLS = internalconfig.TLSConfig
 
 const (
-	AccessProviderTypeConfigAPIKey = internalconfig.AccessProviderTypeConfigAPIKey
-	DefaultAccessProviderName      = internalconfig.DefaultAccessProviderName
-	DefaultPanelGitHubRepository   = internalconfig.DefaultPanelGitHubRepository
+	DefaultPanelGitHubRepository = internalconfig.DefaultPanelGitHubRepository
 )
-
-func MakeInlineAPIKeyProvider(keys []string) *AccessProvider {
-	return internalconfig.MakeInlineAPIKeyProvider(keys)
-}
 
 func LoadConfig(configFile string) (*Config, error) { return internalconfig.LoadConfig(configFile) }
 
