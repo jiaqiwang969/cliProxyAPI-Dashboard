@@ -64,6 +64,26 @@ CLIProxyAPI 用户手册： [https://help.router-for.me/](https://help.router-fo
 
 请参见 [MANAGEMENT_API_CN.md](https://help.router-for.me/cn/management/api)
 
+## macOS 菜单栏监控（极简版）
+
+仓库已内置轻量级 macOS 菜单栏监控工具：`macos-menubar/CLIProxyMenuBar`。
+
+- 按 `sk-key -> 模型` 展示调用次数
+- 优先展示 `antigravity/*` 路由模型（旧格式会自动回退为上游模型名）
+- 只保留开启/暂停监控（`ON` / `OFF`）等极简操作
+
+快速启动：
+
+```bash
+cd macos-menubar/CLIProxyMenuBar
+swift run CLIProxyMenuBar
+```
+
+前置条件：
+
+- 已配置 `remote-management.secret-key`（或设置 `CLIPROXY_MANAGEMENT_KEY`）
+- `config.yaml` 中 `usage-statistics-enabled: true`
+
 ## Amp CLI 支持
 
 CLIProxyAPI 已内置对 [Amp CLI](https://ampcode.com) 和 Amp IDE 扩展的支持，可让你使用自己的 Google/ChatGPT/Claude OAuth 订阅来配合 Amp 编码工具：

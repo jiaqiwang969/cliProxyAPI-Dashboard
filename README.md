@@ -64,6 +64,26 @@ CLIProxyAPI Guides: [https://help.router-for.me/](https://help.router-for.me/)
 
 see [MANAGEMENT_API.md](https://help.router-for.me/management/api)
 
+## macOS Menu Bar Monitor (minimal)
+
+This repo now includes a lightweight macOS menu bar monitor at `macos-menubar/CLIProxyMenuBar`.
+
+- Shows request counters grouped by `sk-key -> model`
+- Focuses on models routed via `antigravity/*` (falls back to upstream model IDs for older payloads)
+- One-click monitor toggle (`ON` / `OFF`), designed for simple daily usage
+
+Quick start:
+
+```bash
+cd macos-menubar/CLIProxyMenuBar
+swift run CLIProxyMenuBar
+```
+
+Requirements:
+
+- `remote-management.secret-key` is configured (or `CLIPROXY_MANAGEMENT_KEY` is set)
+- `usage-statistics-enabled: true` in `config.yaml`
+
 ## Amp CLI Support
 
 CLIProxyAPI includes integrated support for [Amp CLI](https://ampcode.com) and Amp IDE extensions, enabling you to use your Google/ChatGPT/Claude OAuth subscriptions with Amp's coding tools:

@@ -63,3 +63,8 @@ _bmad-output/*
 coverage.out
 *.test
 antigravity-*.json
+
+# Swift / macOS menu bar app build artifacts
+macos-menubar/**/.build/
+macos-menubar/**/.swiftpm/
+DerivedData/
