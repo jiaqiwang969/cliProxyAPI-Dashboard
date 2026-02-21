@@ -198,6 +198,31 @@ final class UsageMonitorViewModel: ObservableObject {
         }
     }
 
+    func updateKeyNote(_ key: String, note: String) {
+        Task {
+            let runtimeConfig = RuntimeConfigLoader.load()
+            do {
+                try APIKeyStore.updateKeyNote(configPath: runtimeConfig.configPath, keyId: key, note: note)
+                actionMessage = "备注已更新"
+            } catch {
+                actionMessage = error.localizedDescription
+            }
+            await refreshServiceAndKeys(runtimeConfig: runtimeConfig)
+        }
+    }
+
+    func setKeyEnabled(_ key: String, enabled: Bool) {
+        Task {
+            let runtimeConfig = RuntimeConfigLoader.load()
+            do {
+                try APIKeyStore.setKeyEnabled(configPath: runtimeConfig.configPath, keyId: key, enabled: enabled)
+            } catch {
+                actionMessage = error.localizedDescription
+            }
+            await refreshServiceAndKeys(runtimeConfig: runtimeConfig)
+        }
+    }
+
     private func reconfigureMonitorLoop() {
         monitorTask?.cancel()
 

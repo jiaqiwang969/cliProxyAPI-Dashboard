@@ -5,6 +5,7 @@ private enum DashboardTab: String, CaseIterable, Identifiable {
     case service = "服务"
     case keys = "Keys"
     case usage = "贡献"
+    case settings = "设置"
 
     var id: String { rawValue }
 }
@@ -12,6 +13,8 @@ private enum DashboardTab: String, CaseIterable, Identifiable {
 struct MenuBarDashboardView: View {
     @ObservedObject var viewModel: UsageMonitorViewModel
     @State private var selectedTab: DashboardTab = .usage
+    @State private var noteDrafts: [String: String] = [:]
+    @AppStorage("launchAtLogin") private var launchAtLogin = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -39,6 +42,8 @@ struct MenuBarDashboardView: View {
                     keysPanel
                 case .usage:
                     usagePanel
+                case .settings:
+                    settingsPanel
                 }
             }
 
@@ -79,10 +84,59 @@ struct MenuBarDashboardView: View {
         .frame(width: 400)
     }
 
+    private var settingsPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Toggle("开机时自动启动", isOn: $launchAtLogin)
+                .font(.callout)
+            
+            Divider()
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("API 地址")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(RuntimeConfigLoader.load().baseURL)
+                    .font(.caption)
+                    .textSelection(.enabled)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("配置文件路径")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(RuntimeConfigLoader.load().configPath ?? "未找到")
+                    .font(.caption)
+                    .textSelection(.enabled)
+            }
+            
+            Spacer()
+        }
+        .frame(maxHeight: 220)
+    }
+
     private var servicePanel: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("状态：\(viewModel.serviceStatusText)")
                 .font(.callout)
+
+            HStack(spacing: 8) {
+                Toggle(
+                    "开机自启",
+                    isOn: Binding(
+                        get: { viewModel.launchAtLoginEnabled },
+                        set: { _ in viewModel.toggleLaunchAtLogin() }
+                    )
+                )
+                .toggleStyle(.switch)
+                .disabled(true) // Requires LaunchAtLoginManager support or directly tying to AppStorage which we have in Settings now
+
+                Spacer()
+
+                Text("目前需要在“设置”页中配置系统自启")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                
+            }
 
             if !viewModel.hasConfigFile {
                 Text("未找到本地 config.yaml，无法控制服务")
@@ -106,6 +160,38 @@ struct MenuBarDashboardView: View {
                         .controlSize(.small)
                 }
             }
+
+            Divider()
+
+            HStack(spacing: 8) {
+                Text("运行日志")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Toggle("仅错误", isOn: $viewModel.showOnlyErrorLogs)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+            }
+
+            if viewModel.filteredServiceLogs.isEmpty {
+                Text("暂无日志")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 4) {
+                        ForEach(viewModel.filteredServiceLogs) { line in
+                            Text(line.text)
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundStyle(line.isError ? .red : .secondary)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+                .frame(maxHeight: 140)
+            }
         }
     }
 
@@ -118,6 +204,8 @@ struct MenuBarDashboardView: View {
             } else {
                 HStack(spacing: 6) {
                     TextField("粘贴 sk-key", text: $viewModel.newKeyInput)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("备注（可选）", text: $viewModel.newKeyNoteInput)
                         .textFieldStyle(.roundedBorder)
                     Button("添加") {
                         viewModel.addManualKey()
@@ -142,26 +230,63 @@ struct MenuBarDashboardView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 6) {
-                        ForEach(viewModel.apiKeys) { entry in
-                            HStack(spacing: 8) {
-                                Text(entry.masked)
-                                    .font(.callout)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                Spacer()
-                                Text("\(viewModel.requestsForKey(entry.id))")
-                                    .font(.caption)
-                                    .monospacedDigit()
-                                    .foregroundStyle(.secondary)
-                                Button("删除") {
-                                    viewModel.removeKey(entry.id)
+                        ForEach(Array(viewModel.apiKeys.enumerated()), id: \.element.id) { index, entry in
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 8) {
+                                    Text(entry.masked)
+                                        .font(.callout)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                        .foregroundStyle(entry.enabled ? .primary : .secondary)
+                                    Spacer()
+                                    Text("\(viewModel.requestsForKey(entry.id))")
+                                        .font(.caption)
+                                        .monospacedDigit()
+                                        .foregroundStyle(.secondary)
+                                    Toggle(
+                                        "",
+                                        isOn: Binding(
+                                            get: { entry.enabled },
+                                            set: { newValue in
+                                                viewModel.setKeyEnabled(entry.id, enabled: newValue)
+                                            }
+                                        )
+                                    )
+                                    .toggleStyle(.switch)
+                                    .labelsHidden()
+                                    .controlSize(.small)
+
+                                    Button("删除") {
+                                        viewModel.removeKey(entry.id)
+                                    }
+                                    .buttonStyle(.borderless)
                                 }
-                                .buttonStyle(.borderless)
+
+                                HStack(spacing: 6) {
+                                    TextField(
+                                        "备注",
+                                        text: Binding(
+                                            get: { noteDrafts[entry.id] ?? entry.note },
+                                            set: { noteDrafts[entry.id] = $0 }
+                                        )
+                                    )
+                                    .textFieldStyle(.roundedBorder)
+                                    .font(.caption)
+
+                                    Button("保存") {
+                                        let note = noteDrafts[entry.id] ?? entry.note
+                                        viewModel.updateKeyNote(entry.id, note: note)
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .font(.caption)
+                                }
                             }
+                            .padding(.vertical, 4)
+                            Divider()
                         }
                     }
                 }
-                .frame(maxHeight: 180)
+                .frame(maxHeight: 240)
             }
         }
     }
