@@ -1,4 +1,5 @@
 import Foundation
+import UserNotifications
 
 @MainActor
 final class UsageMonitorViewModel: ObservableObject {
@@ -15,6 +16,9 @@ final class UsageMonitorViewModel: ObservableObject {
     @Published var serviceLogs: [LogLine] = []
     private var logTask: Task<Void, Never>?
     private var logFileHandle: FileHandle?
+
+    // Tracks the last known run state to detect crashes
+    private var wasRunningPreviously: Bool = false
 
     @Published var monitorEnabled: Bool {
         didSet {
@@ -39,6 +43,8 @@ final class UsageMonitorViewModel: ObservableObject {
         } else {
             self.monitorEnabled = defaults.bool(forKey: Self.monitorEnabledKey)
         }
+
+        setupNotifications()
 
         Task { await refreshNow() }
         reconfigureMonitorLoop()
@@ -124,7 +130,16 @@ final class UsageMonitorViewModel: ObservableObject {
             errorMessage = nil
         }
 
+        let previousStatus = serviceStatus.isRunning
         await refreshServiceAndKeys(runtimeConfig: runtimeConfig)
+        let currentStatus = serviceStatus.isRunning
+        
+        // Crash detection: If it was running in the previous tick, but now it's not, and we didn't explicitly stop it
+        if previousStatus && !currentStatus && wasRunningPreviously {
+            sendCrashNotification()
+        }
+        wasRunningPreviously = currentStatus
+        
         if serviceStatus.isRunning && logTask == nil {
             startLogMonitoring()
         }
@@ -139,6 +154,7 @@ final class UsageMonitorViewModel: ObservableObject {
             let runtimeConfig = RuntimeConfigLoader.load()
             do {
                 try await LocalServiceController.start(config: runtimeConfig)
+                wasRunningPreviously = true
                 actionMessage = "本地服务已启动"
             } catch {
                 actionMessage = error.localizedDescription
@@ -150,6 +166,7 @@ final class UsageMonitorViewModel: ObservableObject {
     func stopLocalService() {
         Task {
             let runtimeConfig = RuntimeConfigLoader.load()
+            wasRunningPreviously = false // Prevent crash alert when intentionally stopping
             await LocalServiceController.stop(config: runtimeConfig)
             actionMessage = "本地服务已停止"
             await refreshNow()
@@ -282,6 +299,22 @@ final class UsageMonitorViewModel: ObservableObject {
         logTask = nil
         logFileHandle?.readabilityHandler = nil
         logFileHandle = nil
+    }
+
+    private func setupNotifications() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error = error {
+                print("Notification auth error: \(error)")
+            }
+        }
+    }
+    
+    private func sendCrashNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "CLIProxy 意外停止"
+        content.body = "后台代理服务已退出，请检查控制台日志。"
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
     }
 
     private func refreshServiceAndKeys(runtimeConfig: RuntimeConfig) async {

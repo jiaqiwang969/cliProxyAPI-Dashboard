@@ -18,7 +18,13 @@ struct CLIProxyMenuBarApp: App {
             Label {
                 Text(viewModel.menuBarTitle)
             } icon: {
-                Image(systemName: viewModel.monitorEnabled ? "dot.radiowaves.left.and.right" : "pause.circle")
+                if viewModel.serviceStatus.isRunning {
+                    Image(systemName: viewModel.monitorEnabled ? "bolt.fill" : "bolt.slash")
+                } else if viewModel.errorMessage != nil {
+                    Image(systemName: "exclamationmark.triangle")
+                } else {
+                    Image(systemName: "pause.circle")
+                }
             }
         }
         .menuBarExtraStyle(.window)
