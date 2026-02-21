@@ -1,0 +1,72 @@
+name: Release CLIProxyMenuBar
+
+on:
+  push:
+    tags:
+      - '*' # Trigger on any tag
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+      
+      - name: Build Menu Bar App
+        run: |
+          cd macos-menubar/CLIProxyMenuBar
+          swift build -c release
+      
+      - name: Package App Bundle
+        run: |
+          cd macos-menubar/CLIProxyMenuBar
+          export APP_DIR="CLIProxyMenuBar.app"
+          mkdir -p "${APP_DIR}/Contents/MacOS"
+          mkdir -p "${APP_DIR}/Contents/Resources"
+          cp .build/release/CLIProxyMenuBar "${APP_DIR}/Contents/MacOS/"
+          
+          # Write Info.plist
+          cat > "${APP_DIR}/Contents/Info.plist" << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>CLIProxyMenuBar</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.routerforme.CLIProxyMenuBar</string>
+            <key>CFBundleName</key>
+            <string>CLIProxyMenuBar</string>
+            <key>CFBundleVersion</key>
+            <string>${{ github.ref_name }}</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${{ github.ref_name }}</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>LSUIElement</key>
+            <true/>
+            <key>NSAppTransportSecurity</key>
+            <dict>
+              <key>NSAllowsArbitraryLoads</key>
+              <true/>
+            </dict>
+          </dict>
+          </plist>
+          PLIST
+          
+          # Create DMG
+          zip -r CLIProxyMenuBar.zip "${APP_DIR}"
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: macos-menubar/CLIProxyMenuBar/CLIProxyMenuBar.zip
+          generate_release_notes: true
