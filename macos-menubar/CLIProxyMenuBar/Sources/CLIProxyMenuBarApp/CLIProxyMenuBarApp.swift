@@ -29,14 +29,24 @@ struct CLIProxyMenuBarApp: App {
         }
         .menuBarExtraStyle(.window)
         .onChange(of: launchAtLogin) { newValue in
-            do {
-                if newValue {
-                    try SMAppService.mainApp.register()
-                } else {
-                    try SMAppService.mainApp.unregister()
+            Task {
+                do {
+                    if newValue {
+                        if SMAppService.mainApp.status == .enabled { return }
+                        try SMAppService.mainApp.register()
+                    } else {
+                        if SMAppService.mainApp.status == .notRegistered { return }
+                        try await SMAppService.mainApp.unregister()
+                    }
+                } catch {
+                    // If registration fails (e.g. not in /Applications or lacking permissions),
+                    // revert the toggle on the main thread and show the error via the view model.
+                    await MainActor.run {
+                        launchAtLogin = false
+                        viewModel.actionMessage = "开机自启设置失败: 请尝试将 App 移动到「应用程序」文件夹"
+                        print("Failed to update Launch at Login setting: \(error)")
+                    }
                 }
-            } catch {
-                print("Failed to update Launch at Login setting: \(error)")
             }
         }
     }
