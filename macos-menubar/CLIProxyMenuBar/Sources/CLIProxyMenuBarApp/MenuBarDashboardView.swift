@@ -171,6 +171,13 @@ struct MenuBarDashboardView: View {
                 Toggle("仅错误", isOn: $viewModel.showOnlyErrorLogs)
                     .toggleStyle(.switch)
                     .controlSize(.small)
+                Button(action: {
+                    viewModel.copyErrorLogs()
+                }) {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help("复制错误日志")
             }
 
             if viewModel.filteredServiceLogs.isEmpty {
@@ -292,8 +299,6 @@ struct MenuBarDashboardView: View {
     }
 
     private var usagePanel: some View {
-        let total = max(viewModel.summary?.displayRequests ?? 0, 1)
-
         return Group {
             if viewModel.keyUsages.isEmpty {
                 Text("暂无贡献数据")
@@ -315,7 +320,7 @@ struct MenuBarDashboardView: View {
                                     Text("\(keyUsage.totalRequests)")
                                         .font(.caption)
                                         .monospacedDigit()
-                                    Text(percentText(value: keyUsage.totalRequests, total: total))
+                                    Text("\(UsageMonitorViewModel.compactNumber(keyUsage.totalTokens)) 词")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                 }
@@ -339,10 +344,5 @@ struct MenuBarDashboardView: View {
                 .frame(maxHeight: 220)
             }
         }
-    }
-
-    private func percentText(value: Int64, total: Int64) -> String {
-        let ratio = Double(value) / Double(total)
-        return String(format: "%.1f%%", ratio * 100)
     }
 }

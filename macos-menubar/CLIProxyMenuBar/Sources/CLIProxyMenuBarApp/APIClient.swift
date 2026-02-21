@@ -9,11 +9,13 @@ struct APIKeyUsage: Identifiable, Equatable {
     let id: String
     let label: String
     let totalRequests: Int64
+    let totalTokens: Int64
     let modelCalls: [ModelCallCount]
 }
 
 struct UsageSummary: Equatable {
     let totalRequests: Int64
+    let totalTokens: Int64
     let keyUsages: [APIKeyUsage]
 
     var displayRequests: Int64 {
@@ -21,6 +23,13 @@ struct UsageSummary: Equatable {
             return keyUsages.reduce(0) { $0 + $1.totalRequests }
         }
         return totalRequests
+    }
+
+    var displayTokens: Int64 {
+        if !keyUsages.isEmpty {
+            return keyUsages.reduce(0) { $0 + $1.totalTokens }
+        }
+        return totalTokens
     }
 }
 
@@ -79,6 +88,7 @@ actor CLIProxyAPIClient {
                     }
 
                 let totalRequests = apiPayload.totalRequests ?? modelRequestMap.values.reduce(0, +)
+                let totalTokens = apiPayload.totalTokens ?? 0
                 if totalRequests == 0 && modelCalls.isEmpty {
                     return nil
                 }
@@ -87,6 +97,7 @@ actor CLIProxyAPIClient {
                     id: apiID,
                     label: Self.maskedIdentifier(apiID),
                     totalRequests: totalRequests,
+                    totalTokens: totalTokens,
                     modelCalls: modelCalls
                 )
             }
@@ -99,6 +110,7 @@ actor CLIProxyAPIClient {
 
         return UsageSummary(
             totalRequests: usagePayload.totalRequests,
+            totalTokens: usagePayload.totalTokens,
             keyUsages: keyUsages
         )
     }
@@ -212,20 +224,24 @@ private struct UsageResponse: Decodable {
 
 private struct UsagePayload: Decodable {
     let totalRequests: Int64
+    let totalTokens: Int64
     let apis: [String: APIPayload]?
 
     enum CodingKeys: String, CodingKey {
         case totalRequests = "total_requests"
+        case totalTokens = "total_tokens"
         case apis
     }
 }
 
 private struct APIPayload: Decodable {
     let totalRequests: Int64?
+    let totalTokens: Int64?
     let models: [String: ModelPayload]?
 
     enum CodingKeys: String, CodingKey {
         case totalRequests = "total_requests"
+        case totalTokens = "total_tokens"
         case models
     }
 

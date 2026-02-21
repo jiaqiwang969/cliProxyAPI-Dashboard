@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import AppKit
 
 @MainActor
 final class UsageMonitorViewModel: ObservableObject {
@@ -60,10 +61,10 @@ final class UsageMonitorViewModel: ObservableObject {
         if !monitorEnabled {
             return "OFF"
         }
-        guard let totalRequests = summary?.displayRequests else {
+        guard let totalRequests = summary?.displayRequests, let totalTokens = summary?.displayTokens else {
             return "--"
         }
-        return Self.compactNumber(totalRequests)
+        return "\(Self.compactNumber(totalRequests)) / \(Self.compactNumber(totalTokens))"
     }
 
     var keyUsages: [APIKeyUsage] {
@@ -148,6 +149,17 @@ final class UsageMonitorViewModel: ObservableObject {
     func toggleMonitor() {
         monitorEnabled.toggle()
     }
+    
+    func copyErrorLogs() {
+        let errors = serviceLogs.filter { $0.isError }.map { $0.text }.joined(separator: "\n")
+        if !errors.isEmpty {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(errors, forType: .string)
+            actionMessage = "已复制最新错误日志"
+        } else {
+            actionMessage = "当前没有错误日志"
+        }
+    }
 
     func startLocalService() {
         Task {
@@ -180,7 +192,7 @@ final class UsageMonitorViewModel: ObservableObject {
                 try APIKeyStore.addKey(configPath: runtimeConfig.configPath, rawKey: newKeyInput)
                 newKeyInput = ""
                 newKeyNoteInput = ""
-                actionMessage = "Key 已添加"
+                actionMessage = "Key 已添加 (配置将自动热重载)"
             } catch {
                 actionMessage = error.localizedDescription
             }
@@ -194,7 +206,7 @@ final class UsageMonitorViewModel: ObservableObject {
             do {
                 let key = APIKeyStore.generateKey()
                 try APIKeyStore.addKey(configPath: runtimeConfig.configPath, rawKey: key)
-                actionMessage = "已生成并添加新 Key"
+                actionMessage = "已生成新 Key (配置将自动热重载)"
             } catch {
                 actionMessage = error.localizedDescription
             }
@@ -207,7 +219,7 @@ final class UsageMonitorViewModel: ObservableObject {
             let runtimeConfig = RuntimeConfigLoader.load()
             do {
                 try APIKeyStore.removeKey(configPath: runtimeConfig.configPath, keyToRemove: key)
-                actionMessage = "Key 已删除"
+                actionMessage = "Key 已删除 (配置将自动热重载)"
             } catch {
                 actionMessage = error.localizedDescription
             }
@@ -220,7 +232,7 @@ final class UsageMonitorViewModel: ObservableObject {
             let runtimeConfig = RuntimeConfigLoader.load()
             do {
                 try APIKeyStore.updateKeyNote(configPath: runtimeConfig.configPath, keyId: key, note: note)
-                actionMessage = "备注已更新"
+                actionMessage = "备注已更新" // config update triggers reload
             } catch {
                 actionMessage = error.localizedDescription
             }
@@ -233,6 +245,7 @@ final class UsageMonitorViewModel: ObservableObject {
             let runtimeConfig = RuntimeConfigLoader.load()
             do {
                 try APIKeyStore.setKeyEnabled(configPath: runtimeConfig.configPath, keyId: key, enabled: enabled)
+                actionMessage = "状态已更新 (配置将自动热重载)"
             } catch {
                 actionMessage = error.localizedDescription
             }
@@ -349,7 +362,7 @@ final class UsageMonitorViewModel: ObservableObject {
         return "暂时无法读取统计"
     }
 
-    private static func compactNumber(_ value: Int64) -> String {
+    static func compactNumber(_ value: Int64) -> String {
         let absolute = abs(Double(value))
         let sign = value < 0 ? "-" : ""
 
