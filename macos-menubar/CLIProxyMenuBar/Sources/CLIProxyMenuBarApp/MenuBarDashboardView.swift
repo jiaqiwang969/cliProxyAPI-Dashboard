@@ -104,9 +104,22 @@ struct MenuBarDashboardView: View {
                 Text("配置文件路径")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(RuntimeConfigLoader.load().configPath ?? "未找到")
-                    .font(.caption)
-                    .textSelection(.enabled)
+                HStack {
+                    Text(RuntimeConfigLoader.load().configPath ?? "未找到")
+                        .font(.caption)
+                        .textSelection(.enabled)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if viewModel.hasConfigFile {
+                        Button(action: {
+                            viewModel.openConfigFile()
+                        }) {
+                            Image(systemName: "folder")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("在访达中打开配置所在文件夹")
+                    }
+                }
             }
             
             Spacer()

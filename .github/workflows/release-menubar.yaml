@@ -62,6 +62,9 @@ jobs:
           </plist>
           PLIST
           
+          # Ad-hoc sign the app to prevent Gatekeeper "damaged app" warnings
+          codesign --force --deep --sign - "${APP_DIR}"
+          
           # Create DMG
           zip -r CLIProxyMenuBar.zip "${APP_DIR}"
           

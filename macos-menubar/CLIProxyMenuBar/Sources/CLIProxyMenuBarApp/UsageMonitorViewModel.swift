@@ -109,6 +109,12 @@ final class UsageMonitorViewModel: ObservableObject {
         return serviceLogs
     }
 
+    func openConfigFile() {
+        if let configPath = RuntimeConfigLoader.load().configPath {
+            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: configPath)
+        }
+    }
+
     func refreshNow() async {
         let runtimeConfig = RuntimeConfigLoader.load()
 
