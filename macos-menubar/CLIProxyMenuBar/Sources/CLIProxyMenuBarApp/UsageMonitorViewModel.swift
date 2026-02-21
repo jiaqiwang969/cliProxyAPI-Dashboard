@@ -8,7 +8,13 @@ final class UsageMonitorViewModel: ObservableObject {
     @Published var serviceStatus: LocalServiceStatus = .unknown
     @Published var apiKeys: [APIKeyEntry] = []
     @Published var newKeyInput = ""
+    @Published var newKeyNoteInput = ""
     @Published var actionMessage: String?
+
+    @Published var showOnlyErrorLogs = false
+    @Published var serviceLogs: [LogLine] = []
+    private var logTask: Task<Void, Never>?
+    private var logFileHandle: FileHandle?
 
     @Published var monitorEnabled: Bool {
         didSet {
@@ -40,6 +46,8 @@ final class UsageMonitorViewModel: ObservableObject {
 
     deinit {
         monitorTask?.cancel()
+        logTask?.cancel()
+        logFileHandle?.readabilityHandler = nil
     }
 
     var menuBarTitle: String {
@@ -78,6 +86,22 @@ final class UsageMonitorViewModel: ObservableObject {
         keyUsages.first { $0.id == key }?.totalRequests ?? 0
     }
 
+    var launchAtLoginEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "launchAtLogin")
+    }
+
+    func toggleLaunchAtLogin() {
+        let newValue = !launchAtLoginEnabled
+        UserDefaults.standard.set(newValue, forKey: "launchAtLogin")
+    }
+
+    var filteredServiceLogs: [LogLine] {
+        if showOnlyErrorLogs {
+            return serviceLogs.filter { $0.isError }
+        }
+        return serviceLogs
+    }
+
     func refreshNow() async {
         let runtimeConfig = RuntimeConfigLoader.load()
 
@@ -101,6 +125,9 @@ final class UsageMonitorViewModel: ObservableObject {
         }
 
         await refreshServiceAndKeys(runtimeConfig: runtimeConfig)
+        if serviceStatus.isRunning && logTask == nil {
+            startLogMonitoring()
+        }
     }
 
     func toggleMonitor() {
@@ -135,6 +162,7 @@ final class UsageMonitorViewModel: ObservableObject {
             do {
                 try APIKeyStore.addKey(configPath: runtimeConfig.configPath, rawKey: newKeyInput)
                 newKeyInput = ""
+                newKeyNoteInput = ""
                 actionMessage = "Key 已添加"
             } catch {
                 actionMessage = error.localizedDescription
@@ -184,6 +212,53 @@ final class UsageMonitorViewModel: ObservableObject {
         }
     }
 
+    private func startLogMonitoring() {
+        stopLogMonitoring()
+        
+        let logPath = (NSTemporaryDirectory() as NSString).appendingPathComponent("cli-proxy-api.log")
+        guard FileManager.default.fileExists(atPath: logPath) else { return }
+        
+        logTask = Task { [weak self] in
+            guard let self = self else { return }
+            
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/tail")
+            process.arguments = ["-n", "100", "-f", logPath]
+            
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            self.logFileHandle = pipe.fileHandleForReading
+            
+            self.logFileHandle?.readabilityHandler = { fileHandle in
+                let data = fileHandle.availableData
+                guard !data.isEmpty else { return }
+                
+                if let str = String(data: data, encoding: .utf8) {
+                    let lines = str.components(separatedBy: .newlines).filter { !$0.isEmpty }
+                    Task { @MainActor in
+                        for line in lines {
+                            let isError = line.lowercased().contains("error") || line.lowercased().contains("panic")
+                            self.serviceLogs.append(LogLine(text: line, isError: isError))
+                        }
+                        if self.serviceLogs.count > 100 {
+                            self.serviceLogs.removeFirst(self.serviceLogs.count - 100)
+                        }
+                    }
+                }
+            }
+            
+            try? process.run()
+            process.waitUntilExit()
+        }
+    }
+
+    private func stopLogMonitoring() {
+        logTask?.cancel()
+        logTask = nil
+        logFileHandle?.readabilityHandler = nil
+        logFileHandle = nil
+    }
+
     private func refreshServiceAndKeys(runtimeConfig: RuntimeConfig) async {
         serviceStatus = await LocalServiceController.queryStatus(config: runtimeConfig)
 
@@ -231,4 +306,10 @@ final class UsageMonitorViewModel: ObservableObject {
             return "\(value)"
         }
     }
+}
+
+struct LogLine: Identifiable {
+    let id = UUID()
+    let text: String
+    let isError: Bool
 }

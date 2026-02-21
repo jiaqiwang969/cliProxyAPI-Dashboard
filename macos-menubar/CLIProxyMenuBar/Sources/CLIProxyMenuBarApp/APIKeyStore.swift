@@ -4,6 +4,9 @@ import Security
 struct APIKeyEntry: Identifiable, Equatable {
     let id: String
     let masked: String
+    var note: String
+    var enabled: Bool
+    var createdAt: Date?
 }
 
 enum APIKeyStoreError: LocalizedError {
@@ -25,9 +28,9 @@ enum APIKeyStoreError: LocalizedError {
 
 enum APIKeyStore {
     static func loadEntries(configPath: String?) throws -> [APIKeyEntry] {
-        let keys = try loadKeys(configPath: configPath)
-        return keys.map { value in
-            APIKeyEntry(id: value, masked: mask(value))
+        let keyTuples = try loadKeys(configPath: configPath)
+        return keyTuples.map { tuple in
+            APIKeyEntry(id: tuple.key, masked: mask(tuple.key), note: tuple.note, enabled: tuple.enabled, createdAt: nil)
         }
     }
 
@@ -38,16 +41,16 @@ enum APIKeyStore {
         }
 
         var keys = try loadKeys(configPath: configPath)
-        guard !keys.contains(key) else {
+        guard !keys.contains(where: { $0.key == key }) else {
             throw APIKeyStoreError.keyAlreadyExists
         }
-        keys.append(key)
+        keys.append((key: key, note: "", enabled: true))
         try saveKeys(keys, configPath: configPath)
     }
 
     static func removeKey(configPath: String?, keyToRemove: String) throws {
         var keys = try loadKeys(configPath: configPath)
-        keys.removeAll { $0 == keyToRemove }
+        keys.removeAll { $0.key == keyToRemove }
         try saveKeys(keys, configPath: configPath)
     }
 
@@ -65,7 +68,23 @@ enum APIKeyStore {
         return "sk-" + String(suffix)
     }
 
-    private static func loadKeys(configPath: String?) throws -> [String] {
+    static func updateKeyNote(configPath: String?, keyId: String, note: String) throws {
+        var keys = try loadKeys(configPath: configPath)
+        if let index = keys.firstIndex(where: { $0.key == keyId }) {
+            keys[index].note = note
+            try saveKeys(keys, configPath: configPath)
+        }
+    }
+
+    static func setKeyEnabled(configPath: String?, keyId: String, enabled: Bool) throws {
+        var keys = try loadKeys(configPath: configPath)
+        if let index = keys.firstIndex(where: { $0.key == keyId }) {
+            keys[index].enabled = enabled
+            try saveKeys(keys, configPath: configPath)
+        }
+    }
+
+    private static func loadKeys(configPath: String?) throws -> [(key: String, note: String, enabled: Bool)] {
         guard let configPath else {
             throw APIKeyStoreError.configNotFound
         }
@@ -84,14 +103,22 @@ enum APIKeyStore {
             .compactMap(parseKeyLine)
     }
 
-    private static func saveKeys(_ keys: [String], configPath: String?) throws {
+    private static func saveKeys(_ keys: [(key: String, note: String, enabled: Bool)], configPath: String?) throws {
         guard let configPath else {
             throw APIKeyStoreError.configNotFound
         }
 
         let raw = try String(contentsOfFile: configPath, encoding: .utf8)
         var lines = raw.components(separatedBy: .newlines)
-        let blockLines = ["api-keys:"] + keys.map { "  - \"\($0)\"" }
+        let blockLines = ["api-keys:"] + keys.map { tuple in
+            var line = "  - \"\(tuple.key)\""
+            if !tuple.enabled || !tuple.note.isEmpty {
+                let notePart = tuple.note.isEmpty ? "" : " # \(tuple.note)"
+                let disablePart = tuple.enabled ? "" : " # disabled"
+                line += "\(disablePart)\(notePart)"
+            }
+            return line
+        }
 
         if let block = apiKeysBlock(in: lines) {
             lines.replaceSubrange(block.start ..< block.end, with: blockLines)
@@ -133,15 +160,26 @@ enum APIKeyStore {
         return nil
     }
 
-    private static func parseKeyLine(_ line: String) -> String? {
+    private static func parseKeyLine(_ line: String) -> (key: String, note: String, enabled: Bool)? {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
-        guard trimmed.hasPrefix("-") else {
+        let isCommentedOut = trimmed.hasPrefix("#")
+        let dashStripped = isCommentedOut ? 
+            String(trimmed.dropFirst().trimmingCharacters(in: .whitespaces).dropFirst().trimmingCharacters(in: .whitespaces)) : 
+            String(trimmed.dropFirst().trimmingCharacters(in: .whitespaces))
+            
+        if dashStripped.isEmpty {
             return nil
         }
 
-        let rawValue = trimmed.dropFirst().trimmingCharacters(in: .whitespaces)
-        let unquoted = rawValue.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-        return unquoted.isEmpty ? nil : unquoted
+        let parts = dashStripped.components(separatedBy: "#")
+        let rawValue = parts[0].trimmingCharacters(in: .whitespaces)
+        let unquoted = rawValue.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+        
+        let trailingComment = parts.count > 1 ? parts[1...].joined(separator: "#").trimmingCharacters(in: .whitespaces) : ""
+        let explicitDisabled = trailingComment.lowercased().contains("disabled") || isCommentedOut
+        let note = trailingComment.replacingOccurrences(of: "disabled", with: "", options: .caseInsensitive).trimmingCharacters(in: .whitespaces)
+        
+        return unquoted.isEmpty ? nil : (key: unquoted, note: note, enabled: !explicitDisabled)
     }
 
     private static func mask(_ value: String) -> String {
