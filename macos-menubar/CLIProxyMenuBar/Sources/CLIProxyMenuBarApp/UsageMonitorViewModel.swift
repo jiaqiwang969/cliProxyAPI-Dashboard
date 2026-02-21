@@ -15,7 +15,7 @@ final class UsageMonitorViewModel: ObservableObject {
 
     @Published var showOnlyErrorLogs = false
     @Published var serviceLogs: [LogLine] = []
-    private var logTask: Task<Void, Never>?
+    private var logProcess: Process?
     private var logFileHandle: FileHandle?
 
     // Tracks the last known run state to detect crashes
@@ -53,8 +53,8 @@ final class UsageMonitorViewModel: ObservableObject {
 
     deinit {
         monitorTask?.cancel()
-        logTask?.cancel()
         logFileHandle?.readabilityHandler = nil
+        logProcess?.terminate()
     }
 
     var menuBarTitle: String {
@@ -147,7 +147,7 @@ final class UsageMonitorViewModel: ObservableObject {
         }
         wasRunningPreviously = currentStatus
         
-        if serviceStatus.isRunning && logTask == nil {
+        if serviceStatus.isRunning && logProcess == nil {
             startLogMonitoring()
         }
     }
@@ -279,45 +279,48 @@ final class UsageMonitorViewModel: ObservableObject {
         let logPath = (NSTemporaryDirectory() as NSString).appendingPathComponent("cli-proxy-api.log")
         guard FileManager.default.fileExists(atPath: logPath) else { return }
         
-        logTask = Task { [weak self] in
-            guard let self = self else { return }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/tail")
+        process.arguments = ["-n", "100", "-f", logPath]
+        
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        self.logFileHandle = pipe.fileHandleForReading
+        self.logProcess = process
+        
+        self.logFileHandle?.readabilityHandler = { [weak self] fileHandle in
+            let data = fileHandle.availableData
+            guard !data.isEmpty else { return }
             
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/tail")
-            process.arguments = ["-n", "100", "-f", logPath]
-            
-            let pipe = Pipe()
-            process.standardOutput = pipe
-            self.logFileHandle = pipe.fileHandleForReading
-            
-            self.logFileHandle?.readabilityHandler = { fileHandle in
-                let data = fileHandle.availableData
-                guard !data.isEmpty else { return }
-                
-                if let str = String(data: data, encoding: .utf8) {
-                    let lines = str.components(separatedBy: .newlines).filter { !$0.isEmpty }
-                    Task { @MainActor in
-                        for line in lines {
-                            let isError = line.lowercased().contains("error") || line.lowercased().contains("panic")
-                            self.serviceLogs.append(LogLine(text: line, isError: isError))
-                        }
-                        if self.serviceLogs.count > 100 {
-                            self.serviceLogs.removeFirst(self.serviceLogs.count - 100)
-                        }
+            if let str = String(data: data, encoding: .utf8) {
+                let lines = str.components(separatedBy: .newlines).filter { !$0.isEmpty }
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    for line in lines {
+                        let isError = line.lowercased().contains("error") || line.lowercased().contains("panic")
+                        self.serviceLogs.append(LogLine(text: line, isError: isError))
+                    }
+                    if self.serviceLogs.count > 100 {
+                        self.serviceLogs.removeFirst(self.serviceLogs.count - 100)
                     }
                 }
             }
-            
-            try? process.run()
-            process.waitUntilExit()
         }
+        
+        process.terminationHandler = { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.stopLogMonitoring()
+            }
+        }
+        
+        try? process.run()
     }
 
     private func stopLogMonitoring() {
-        logTask?.cancel()
-        logTask = nil
         logFileHandle?.readabilityHandler = nil
         logFileHandle = nil
+        logProcess?.terminate()
+        logProcess = nil
     }
 
     private func setupNotifications() {

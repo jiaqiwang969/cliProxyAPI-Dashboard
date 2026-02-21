@@ -94,16 +94,18 @@ enum LocalServiceController {
             process.standardInput = nil
 
             process.terminationHandler = { proc in
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(decoding: data, as: UTF8.self)
-                if proc.terminationStatus == 0 {
-                    continuation.resume(returning: output)
-                } else {
-                    continuation.resume(throwing: NSError(
-                        domain: "LocalServiceController",
-                        code: Int(proc.terminationStatus),
-                        userInfo: [NSLocalizedDescriptionKey: output]
-                    ))
+                Task {
+                    let data = try? pipe.fileHandleForReading.readToEnd()
+                    let output = String(decoding: data ?? Data(), as: UTF8.self)
+                    if proc.terminationStatus == 0 {
+                        continuation.resume(returning: output)
+                    } else {
+                        continuation.resume(throwing: NSError(
+                            domain: "LocalServiceController",
+                            code: Int(proc.terminationStatus),
+                            userInfo: [NSLocalizedDescriptionKey: output]
+                        ))
+                    }
                 }
             }
 
