@@ -115,6 +115,43 @@ final class UsageMonitorViewModel: ObservableObject {
         }
     }
 
+    func openLogFile() {
+        let logPath = (NSTemporaryDirectory() as NSString).appendingPathComponent("cli-proxy-api.log")
+        if FileManager.default.fileExists(atPath: logPath) {
+            let url = URL(fileURLWithPath: logPath)
+            let config = NSWorkspace.OpenConfiguration()
+            if let consoleUrl = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Console") {
+                NSWorkspace.shared.open([url], withApplicationAt: consoleUrl, configuration: config, completionHandler: nil)
+            } else {
+                NSWorkspace.shared.open(url)
+            }
+        } else {
+            actionMessage = "暂无本地日志文件"
+        }
+    }
+
+    func checkForUpdates() {
+        Task {
+            guard let url = URL(string: "https://api.github.com/repos/jiaqiwang969/cliProxyAPI-Dashboard/releases/latest") else { return }
+            do {
+                let (data, response) = try await URLSession.shared.data(from: url)
+                guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+                      let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let tagName = json["tag_name"] as? String else {
+                    actionMessage = "检查更新失败"
+                    return
+                }
+                
+                if let htmlUrlStr = json["html_url"] as? String, let htmlUrl = URL(string: htmlUrlStr) {
+                    actionMessage = "发现最新版本: \(tagName)"
+                    NSWorkspace.shared.open(htmlUrl)
+                }
+            } catch {
+                actionMessage = "检查更新出错: \(error.localizedDescription)"
+            }
+        }
+    }
+
     func refreshNow() async {
         let runtimeConfig = RuntimeConfigLoader.load()
 

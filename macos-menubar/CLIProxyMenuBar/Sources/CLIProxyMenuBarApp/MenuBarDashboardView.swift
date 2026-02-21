@@ -123,6 +123,17 @@ struct MenuBarDashboardView: View {
             }
             
             Spacer()
+            
+            Button(action: {
+                viewModel.checkForUpdates()
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                    Text("检查更新")
+                }
+            }
+            .buttonStyle(.link)
+            .font(.caption)
         }
         .frame(maxHeight: 220)
     }
@@ -184,6 +195,13 @@ struct MenuBarDashboardView: View {
                 Toggle("仅错误", isOn: $viewModel.showOnlyErrorLogs)
                     .toggleStyle(.switch)
                     .controlSize(.small)
+                Button(action: {
+                    viewModel.openLogFile()
+                }) {
+                    Image(systemName: "macwindow")
+                }
+                .buttonStyle(.borderless)
+                .help("在 macOS 控制台中打开日志文件")
                 Button(action: {
                     viewModel.copyErrorLogs()
                 }) {
