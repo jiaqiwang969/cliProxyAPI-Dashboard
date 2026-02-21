@@ -70,7 +70,8 @@ CLIProxyAPI 用户手册： [https://help.router-for.me/](https://help.router-fo
 
 - 按 `sk-key -> 模型` 展示调用次数
 - 优先展示 `antigravity/*` 路由模型（旧格式会自动回退为上游模型名）
-- 只保留开启/暂停监控（`ON` / `OFF`）等极简操作
+- 支持本地服务启动/停止与 `sk-key` 添加/生成/删除
+- 提供开启/暂停监控（`ON` / `OFF`）等极简操作
 
 快速启动：
 

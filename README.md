@@ -70,7 +70,8 @@ This repo now includes a lightweight macOS menu bar monitor at `macos-menubar/CL
 
 - Shows request counters grouped by `sk-key -> model`
 - Focuses on models routed via `antigravity/*` (falls back to upstream model IDs for older payloads)
-- One-click monitor toggle (`ON` / `OFF`), designed for simple daily usage
+- Supports local service start/stop and `sk-key` add/generate/remove operations
+- Includes one-click monitor toggle (`ON` / `OFF`) for daily usage
 
 Quick start:
 

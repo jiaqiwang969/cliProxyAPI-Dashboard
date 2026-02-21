@@ -4,6 +4,24 @@ struct RuntimeConfig {
     let baseURL: String
     let managementKey: String
     let configPath: String?
+
+    var port: Int {
+        if let components = URLComponents(string: baseURL), let port = components.port {
+            return port
+        }
+        return 8317
+    }
+
+    var binaryPath: String? {
+        guard let configPath else {
+            return nil
+        }
+        let directory = (configPath as NSString).deletingLastPathComponent
+        guard !directory.isEmpty else {
+            return nil
+        }
+        return (directory as NSString).appendingPathComponent("cli-proxy-api")
+    }
 }
 
 enum RuntimeConfigLoader {

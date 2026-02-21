@@ -5,14 +5,16 @@ final class UsageMonitorViewModel: ObservableObject {
     @Published var summary: UsageSummary?
     @Published var isRefreshing = false
     @Published var errorMessage: String?
+    @Published var serviceStatus: LocalServiceStatus = .unknown
+    @Published var apiKeys: [APIKeyEntry] = []
+    @Published var newKeyInput = ""
+    @Published var actionMessage: String?
 
     @Published var monitorEnabled: Bool {
         didSet {
             UserDefaults.standard.set(monitorEnabled, forKey: Self.monitorEnabledKey)
             reconfigureMonitorLoop()
-            if monitorEnabled {
-                Task { await refreshNow() }
-            }
+            Task { await refreshNow() }
         }
     }
 
@@ -32,12 +34,8 @@ final class UsageMonitorViewModel: ObservableObject {
             self.monitorEnabled = defaults.bool(forKey: Self.monitorEnabledKey)
         }
 
-        if monitorEnabled {
-            Task {
-                await refreshNow()
-                reconfigureMonitorLoop()
-            }
-        }
+        Task { await refreshNow() }
+        reconfigureMonitorLoop()
     }
 
     deinit {
@@ -58,39 +56,122 @@ final class UsageMonitorViewModel: ObservableObject {
         summary?.keyUsages ?? []
     }
 
-    func refreshNow() async {
-        guard monitorEnabled else {
-            return
+    var hasConfigFile: Bool {
+        RuntimeConfigLoader.load().configPath != nil
+    }
+
+    var serviceStatusText: String {
+        if serviceStatus.isRunning {
+            if let pid = serviceStatus.pid {
+                return "运行中 (PID \(pid))"
+            }
+            return "运行中"
         }
 
+        if let detail = serviceStatus.detail, !detail.isEmpty {
+            return detail
+        }
+        return "已停止"
+    }
+
+    func requestsForKey(_ key: String) -> Int64 {
+        keyUsages.first { $0.id == key }?.totalRequests ?? 0
+    }
+
+    func refreshNow() async {
         let runtimeConfig = RuntimeConfigLoader.load()
 
         isRefreshing = true
         defer { isRefreshing = false }
 
-        do {
-            let newSummary = try await client.fetchUsageSummary(
-                baseURL: runtimeConfig.baseURL,
-                managementKey: runtimeConfig.managementKey
-            )
-            summary = newSummary
+        if monitorEnabled {
+            do {
+                let newSummary = try await client.fetchUsageSummary(
+                    baseURL: runtimeConfig.baseURL,
+                    managementKey: runtimeConfig.managementKey
+                )
+                summary = newSummary
+                errorMessage = nil
+            } catch {
+                errorMessage = Self.makeFriendlyError(error, config: runtimeConfig)
+            }
+        } else {
+            summary = nil
             errorMessage = nil
-        } catch {
-            errorMessage = Self.makeFriendlyError(error, config: runtimeConfig)
         }
+
+        await refreshServiceAndKeys(runtimeConfig: runtimeConfig)
     }
 
     func toggleMonitor() {
         monitorEnabled.toggle()
     }
 
+    func startLocalService() {
+        Task {
+            let runtimeConfig = RuntimeConfigLoader.load()
+            do {
+                try await LocalServiceController.start(config: runtimeConfig)
+                actionMessage = "本地服务已启动"
+            } catch {
+                actionMessage = error.localizedDescription
+            }
+            await refreshNow()
+        }
+    }
+
+    func stopLocalService() {
+        Task {
+            let runtimeConfig = RuntimeConfigLoader.load()
+            await LocalServiceController.stop(config: runtimeConfig)
+            actionMessage = "本地服务已停止"
+            await refreshNow()
+        }
+    }
+
+    func addManualKey() {
+        Task {
+            let runtimeConfig = RuntimeConfigLoader.load()
+            do {
+                try APIKeyStore.addKey(configPath: runtimeConfig.configPath, rawKey: newKeyInput)
+                newKeyInput = ""
+                actionMessage = "Key 已添加"
+            } catch {
+                actionMessage = error.localizedDescription
+            }
+            await refreshServiceAndKeys(runtimeConfig: runtimeConfig)
+        }
+    }
+
+    func generateAndAddKey() {
+        Task {
+            let runtimeConfig = RuntimeConfigLoader.load()
+            do {
+                let key = APIKeyStore.generateKey()
+                try APIKeyStore.addKey(configPath: runtimeConfig.configPath, rawKey: key)
+                actionMessage = "已生成并添加新 Key"
+            } catch {
+                actionMessage = error.localizedDescription
+            }
+            await refreshServiceAndKeys(runtimeConfig: runtimeConfig)
+        }
+    }
+
+    func removeKey(_ key: String) {
+        Task {
+            let runtimeConfig = RuntimeConfigLoader.load()
+            do {
+                try APIKeyStore.removeKey(configPath: runtimeConfig.configPath, keyToRemove: key)
+                actionMessage = "Key 已删除"
+            } catch {
+                actionMessage = error.localizedDescription
+            }
+            await refreshServiceAndKeys(runtimeConfig: runtimeConfig)
+        }
+    }
+
     private func reconfigureMonitorLoop() {
         monitorTask?.cancel()
-
-        guard monitorEnabled else {
-            monitorTask = nil
-            return
-        }
 
         monitorTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -100,6 +181,16 @@ final class UsageMonitorViewModel: ObservableObject {
                 }
                 await self?.refreshNow()
             }
+        }
+    }
+
+    private func refreshServiceAndKeys(runtimeConfig: RuntimeConfig) async {
+        serviceStatus = await LocalServiceController.queryStatus(config: runtimeConfig)
+
+        do {
+            apiKeys = try APIKeyStore.loadEntries(configPath: runtimeConfig.configPath)
+        } catch {
+            apiKeys = []
         }
     }
 
