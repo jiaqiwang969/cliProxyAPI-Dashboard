@@ -166,6 +166,12 @@ struct MenuBarDashboardView: View {
                 Text("未找到本地 config.yaml，无法控制服务")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                
+                Button("生成默认配置") {
+                    viewModel.createDefaultConfig()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
             }
 
             HStack(spacing: 8) {
@@ -239,6 +245,12 @@ struct MenuBarDashboardView: View {
                 Text("未找到本地 config.yaml，无法管理 Key")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                
+                Button("生成默认配置") {
+                    viewModel.createDefaultConfig()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
             } else {
                 HStack(spacing: 6) {
                     TextField("粘贴 sk-key", text: $viewModel.newKeyInput)

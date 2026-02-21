@@ -152,6 +152,36 @@ final class UsageMonitorViewModel: ObservableObject {
         }
     }
 
+    func createDefaultConfig() {
+        Task {
+            let configContent = """
+            port: 8317
+            remote-management:
+              allow-remote: false
+              secret-key: ""
+            usage-statistics-enabled: true
+            api-keys:
+              - "sk-default-key # your first key"
+            """
+            
+            let fm = FileManager.default
+            let homeURL = fm.homeDirectoryForCurrentUser
+            let appDir = homeURL.appendingPathComponent(".cliproxyapi")
+            let configPath = appDir.appendingPathComponent("config.yaml")
+            
+            do {
+                if !fm.fileExists(atPath: appDir.path) {
+                    try fm.createDirectory(at: appDir, withIntermediateDirectories: true)
+                }
+                try configContent.write(to: configPath, atomically: true, encoding: .utf8)
+                actionMessage = "已生成默认配置 ~/.cliproxyapi/config.yaml"
+                await refreshNow()
+            } catch {
+                actionMessage = "创建配置失败: \(error.localizedDescription)"
+            }
+        }
+    }
+
     func refreshNow() async {
         let runtimeConfig = RuntimeConfigLoader.load()
 
